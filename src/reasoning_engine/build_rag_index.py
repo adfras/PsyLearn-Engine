@@ -31,15 +31,9 @@ def compute_embeddings():
     print(f"Computing embeddings for {len(df)} questions... (This may take a while)")
     embeddings = model.encode(df['question'].tolist(), show_progress_bar=True)
 
-    # --- Using your original, preferred logic for storing embeddings ---
-    # The embedding is a 384-dimensional vector for this model.
-    # We'll store it as separate columns in the dataframe.
     embedding_df = pd.DataFrame(embeddings, index=df.index)
     embedding_df = embedding_df.add_prefix('embed_')
-
-    # Combine the original dataframe with the new embedding columns
     df_with_embeddings = pd.concat([df, embedding_df], axis=1)
-    # --- End of original logic ---
 
     print(f"Saving new dataframe with embeddings to '{OUTPUT_FILE}'...")
     df_with_embeddings.to_parquet(OUTPUT_FILE)
