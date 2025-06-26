@@ -1,0 +1,1303 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+notebooks/1_train_policy_model.ipynb
+README.md
+requirements.txt
+scripts/investigate_data.py
+scripts/verify_training_data.py
+src/proactive_tutor/data_augmentation.py
+src/proactive_tutor/feature_engineering.py
+src/proactive_tutor/scheduler.py
+src/reasoning_engine/build_rag_index.py
+src/reasoning_engine/finetune.py
+src/reasoning_engine/prepare_data.py
+tests/create_golden_set.py
+tests/test_data_quality.py
+tests/test_evaluation.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="notebooks/1_train_policy_model.ipynb">
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "vscode": {
+     "languageId": "plaintext"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import os\n",
+    "import joblib\n",
+    "import re\n",
+    "import lightgbm as lgb\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.metrics import roc_auc_score\n",
+    "from sklearn.preprocessing import LabelEncoder\n",
+    "from pyBKT.models import Model\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "from datetime import datetime, timedelta\n",
+    "\n",
+    "# --- Define Paths and Constants ---\n",
+    "PROCESSED_DATA_DIR = 'data/processed/'\n",
+    "MODELS_DIR = 'models/'\n",
+    "\n",
+    "# --- THIS IS THE KEY CHANGE: Point directly to the final data file ---\n",
+    "MODEL_DATA_FILE = os.path.join(PROCESSED_DATA_DIR, \"LGBM_MODEL_DATA.parquet\")\n",
+    "\n",
+    "print(\"Setup complete. Ready to load pre-processed data and train final models.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "vscode": {
+     "languageId": "plaintext"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "if os.path.exists(MODEL_DATA_FILE):\n",
+    "    df_model_data = pd.read_parquet(MODEL_DATA_FILE)\n",
+    "    print(f\"Successfully loaded {len(df_model_data):,} feature-rich interactions.\")\n",
+    "    print(\"Columns available:\", df_model_data.columns.tolist())\n",
+    "else:\n",
+    "    print(f\"FATAL: Final model data file not found at '{MODEL_DATA_FILE}'.\")\n",
+    "    print(\"Please ensure you have downloaded the results from Colab and placed the file in the correct directory.\")\n",
+    "    df_model_data = pd.DataFrame()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "vscode": {
+     "languageId": "plaintext"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "if not df_model_data.empty:\n",
+    "    print(\"\\n--- Training ENRICHED LGBM 'Success Predictor' Model ---\")\n",
+    "\n",
+    "    # We need to get the embedding column names dynamically from the dataframe\n",
+    "    embedding_cols = [col for col in df_model_data.columns if col.startswith('embed_')]\n",
+    "    \n",
+    "    base_features = ['prior_response_time', 'prior_is_correct', 'skill_id_encoded', 'skill_attempts', 'skill_correct_rate', 'question_length', 'bkt_prior_mastery']\n",
+    "    features = base_features + embedding_cols\n",
+    "    target = 'is_correct'\n",
+    "\n",
+    "    # Ensure all features are actually in the dataframe before using them\n",
+    "    features = [f for f in features if f in df_model_data.columns]\n",
+    "\n",
+    "    train_df, val_df = train_test_split(df_model_data, test_size=0.2, random_state=42, stratify=df_model_data['student_id'])\n",
+    "\n",
+    "    X_train, y_train = train_df[features], train_df[target]\n",
+    "    X_val, y_val = val_df[features], val_df[target]\n",
+    "\n",
+    "    print(f\"Training on {len(X_train):,} interactions with {len(features)} features.\")\n",
+    "\n",
+    "    lgbm_predictor = lgb.LGBMClassifier(objective='binary', metric='auc', random_state=42)\n",
+    "    lgbm_predictor.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(10, verbose=False)])\n",
+    "\n",
+    "    auc = roc_auc_score(y_val, lgbm_predictor.predict_proba(X_val)[:, 1])\n",
+    "    print(f\"\\nEnriched LGBM Model AUC on validation set: {auc:.4f}\")\n",
+    "\n",
+    "    lgbm_model_path = os.path.join(MODELS_DIR, 'lgbm_psych_predictor_enriched.joblib')\n",
+    "    joblib.dump(lgbm_predictor, lgbm_model_path)\n",
+    "    print(f\"Enriched LGBM 'Tactician' model saved to: {lgbm_model_path}\")\n",
+    "\n",
+    "    print(\"\\n--- Feature Importance for Enriched Q&A Tactician ---\")\n",
+    "    if hasattr(lgbm_predictor, 'feature_importances_'):\n",
+    "         lgb.plot_importance(lgbm_predictor, figsize=(10, 8), max_num_features=20, importance_type='gain', title='Top 20 Feature Importances')\n",
+    "         plt.tight_layout()\n",
+    "         plt.show()\n",
+    "else:\n",
+    "    print(\"Modeling data not available. Skipping LGBM training.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "vscode": {
+     "languageId": "plaintext"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# This final cell is for the showcase and is now purely for demonstration.\n",
+    "# It is kept separate and will likely be moved to a dedicated 'inference.py' or 'app.py' script.\n",
+    "# For now, it remains here to show the full end-to-end logic.\n",
+    "# Note: The showcase logic itself is complex and depends on many variables being in the notebook's state.\n",
+    "# It's not included in this final version as it requires a full re-run to populate all variables like `df_psych`, `skill_encoder` etc.\n",
+    "# The primary goal of this workflow was to successfully train and save the models, which has been achieved.\n",
+    "print(\"Models have been trained and saved successfully.\")\n",
+    "print(f\"LGBM predictor is at: {lgbm_model_path}\")\n",
+    "print(\"BKT and skill encoder models are in the 'models/' directory.\")\n",
+    "print(\"The project is now ready for inference or deployment.\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": ".venv",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.9"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+</file>
+
+<file path="scripts/investigate_data.py">
+# investigate_data.py
+# A robust script to find and analyze rows in the dataset based on column length.
+
+import pandas as pd
+import argparse
+import os
+
+# --- Configuration ---
+DEFAULT_DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
+DEFAULT_COLUMN = "question"
+DEFAULT_THRESHOLD = 10
+
+def investigate_column_length(file_path: str, column_name: str, threshold: int, comparison: str):
+    """
+    Loads a parquet file and prints rows where the length of a specified column
+    is less than or greater than a given threshold.
+    
+    Args:
+        file_path (str): The path to the parquet data file.
+        column_name (str): The name of the column to investigate.
+        threshold (int): The length threshold to check against.
+        comparison (str): Either 'less' or 'greater'.
+    """
+    # --- 1. Input Validation ---
+    if not os.path.exists(file_path):
+        print(f"Error: Data file not found at '{file_path}'")
+        return
+
+    if comparison not in ['less', 'greater']:
+        print(f"Error: Invalid comparison type '{comparison}'. Must be 'less' or 'greater'.")
+        return
+
+    print(f"--- Starting Investigation ---")
+    print(f"File:        {file_path}")
+    print(f"Column:      {column_name}")
+    print(f"Threshold:   {threshold}")
+    print(f"Condition:   Length is {comparison} than {threshold}")
+    print("----------------------------\n")
+
+    # --- 2. Data Loading and Analysis ---
+    try:
+        df = pd.read_parquet(file_path)
+
+        if column_name not in df.columns:
+            print(f"Error: Column '{column_name}' not found in the dataset.")
+            print(f"Available columns are: {list(df.columns)}")
+            return
+            
+        # Ensure the column is of string type for .str accessor
+        df[column_name] = df[column_name].astype(str)
+        
+        # Apply the filter based on the comparison type
+        if comparison == 'less':
+            filtered_df = df[df[column_name].str.len() < threshold]
+        else: # comparison == 'greater'
+            filtered_df = df[df[column_name].str.len() > threshold]
+
+        # --- 3. Reporting Results ---
+        num_found = len(filtered_df)
+        if num_found > 0:
+            print(f"SUCCESS: Found {num_found} rows meeting the condition.\n")
+            # Display relevant columns for context
+            display_columns = [column_name, 'source', 'answer']
+            # Ensure display columns exist before trying to show them
+            valid_display_columns = [col for col in display_columns if col in df.columns]
+            
+            with pd.option_context('display.max_rows', None, 'display.max_colwidth', 100):
+                print(filtered_df[valid_display_columns])
+        else:
+            print("SUCCESS: Found 0 rows meeting the specified condition.")
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
+if __name__ == "__main__":
+    # --- 4. Command-Line Interface (CLI) Setup ---
+    parser = argparse.ArgumentParser(
+        description="Investigate a dataset by finding rows with specific column lengths.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter # Shows default values in help message
+    )
+    
+    parser.add_argument(
+        "--file",
+        default=DEFAULT_DATA_FILE,
+        help="Path to the .parquet data file to investigate."
+    )
+    parser.add_argument(
+        "--column",
+        default=DEFAULT_COLUMN,
+        help="The column whose length you want to check."
+    )
+    parser.add_argument(
+        "--threshold",
+        type=int,
+        default=DEFAULT_THRESHOLD,
+        help="The character length threshold."
+    )
+    parser.add_argument(
+        "--comparison",
+        choices=['less', 'greater'],
+        default='less',
+        help="Set to 'less' to find rows shorter than the threshold, or 'greater' for longer."
+    )
+
+    args = parser.parse_args()
+    
+    investigate_column_length(
+        file_path=args.file,
+        column_name=args.column,
+        threshold=args.threshold,
+        comparison=args.comparison
+    )
+</file>
+
+<file path="scripts/verify_training_data.py">
+import pandas as pd
+import os
+import argparse
+
+# --- Configuration ---
+TRAINING_DATA_FILE = "data/training_sets/distractor_generation_training_data.parquet"
+
+def verify_data(file_path: str, num_samples: int):
+    """
+    Loads the generated training data and prints a random sample
+    for human verification.
+    """
+    print("--- Starting Training Data Verification ---")
+    
+    # 1. Validate file exists
+    if not os.path.exists(file_path):
+        print(f"\n❌ FATAL: Training data file not found at '{file_path}'.")
+        print("Please run generate_distractor_training_set.py first.")
+        return
+
+    print(f"Loading data from '{file_path}'...")
+    try:
+        df = pd.read_parquet(file_path)
+    except Exception as e:
+        print(f"\n❌ FATAL: Could not read parquet file. Error: {e}")
+        return
+
+    # 2. Take a random sample for review
+    if num_samples > len(df):
+        print(f"Warning: Requested {num_samples} samples, but dataset only has {len(df)}. Showing all.")
+        num_samples = len(df)
+        
+    sample_df = df.sample(n=num_samples, random_state=42)
+
+    print(f"\nDisplaying {num_samples} random examples for your review:")
+    print("-" * 80)
+
+    # 3. Print samples in a readable format
+    for i, row in sample_df.iterrows():
+        print(f"\n--- Example {i+1}/{num_samples} ---")
+        print(f"\n[QUESTION]:")
+        print(f"  {row['question']}")
+        print(f"\n  [CORRECT ANSWER]:")
+        print(f"    {row['correct_answer']}")
+        print(f"\n  [GENERATED DISTRACTOR (is this a good distractor?)]:")
+        print(f"    {row['distractor']}")
+        print("-" * 80)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Spot-check the quality of the auto-generated distractor training data.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    parser.add_argument(
+        "--file",
+        default=TRAINING_DATA_FILE,
+        help="Path to the training data .parquet file."
+    )
+    parser.add_argument(
+        "-n", "--num_samples",
+        type=int,
+        default=5,
+        help="The number of random samples to display for verification."
+    )
+
+    args = parser.parse_args()
+    
+    verify_data(file_path=args.file, num_samples=args.num_samples)
+</file>
+
+<file path="src/proactive_tutor/data_augmentation.py">
+import pandas as pd
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+import os
+from tqdm import tqdm
+
+# --- Configuration ---
+DATA_FILE = "data/processed/psychology_data_with_embeddings.parquet"
+OUTPUT_DIR = "data/training_sets"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "distractor_generation_training_data.parquet")
+
+NUM_SAMPLES_TO_GENERATE = 50000 
+SIMILARITY_MIN = 0.3
+SIMILARITY_MAX = 0.7
+# Process in batches to balance speed and memory usage.
+# This size is safe for most standard computers.
+BATCH_SIZE = 1000 
+
+if __name__ == "__main__":
+    print("--- Starting FAST & SAFE Automated Training Set Generation ---")
+    
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    if not os.path.exists(DATA_FILE):
+        print(f"FATAL: Data file with embeddings not found at '{DATA_FILE}'. Please run compute_embeddings.py first.")
+    else:
+        print("Loading data and embeddings...")
+        df = pd.read_parquet(DATA_FILE)
+        
+        if NUM_SAMPLES_TO_GENERATE > len(df):
+            NUM_SAMPLES_TO_GENERATE = len(df)
+
+        df_sample = df.sample(n=NUM_SAMPLES_TO_GENERATE, random_state=42)
+
+        embedding_cols = [col for col in df.columns if col.startswith('embed_')]
+        all_embeddings = df[embedding_cols].values
+        
+        training_records = []
+        num_batches = int(np.ceil(len(df_sample) / BATCH_SIZE))
+
+        print(f"Processing {len(df_sample)} samples in {num_batches} batches of size {BATCH_SIZE}...")
+
+        for i in tqdm(range(num_batches)):
+            # Get the current batch of questions
+            batch_start = i * BATCH_SIZE
+            batch_end = (i + 1) * BATCH_SIZE
+            batch_df = df_sample.iloc[batch_start:batch_end]
+            batch_embeddings = batch_df[embedding_cols].values
+            
+            # --- FAST MATRIX OPERATION ---
+            # Calculate similarity for the entire batch at once.
+            # This creates a small, temporary matrix (e.g., 1000 x 400k)
+            sim_matrix_batch = cosine_similarity(batch_embeddings, all_embeddings)
+            
+            # Now, iterate through the results for this small batch
+            for j in range(len(batch_df)):
+                scores = sim_matrix_batch[j]
+                
+                candidate_indices = np.where((scores > SIMILARITY_MIN) & (scores < SIMILARITY_MAX))[0]
+                
+                # Get the original index of the current question
+                current_question_original_index = batch_df.index[j]
+                candidate_indices = candidate_indices[candidate_indices != current_question_original_index]
+                
+                if len(candidate_indices) > 0:
+                    distractor_idx = np.random.choice(candidate_indices)
+                else:
+                    sorted_indices = np.argsort(scores)
+                    fallback_choice = sorted_indices[int(len(sorted_indices) * 0.3)]
+                    distractor_idx = fallback_choice if fallback_choice != current_question_original_index else sorted_indices[int(len(sorted_indices) * 0.3) + 1]
+
+                training_records.append({
+                    'question': batch_df.iloc[j]['question'],
+                    'correct_answer': batch_df.iloc[j]['answer'],
+                    'distractor': df.iloc[distractor_idx]['answer']
+                })
+
+        print("\nConstructing final training set from processed records...")
+        training_data = pd.DataFrame(training_records)
+        
+        training_data.to_parquet(OUTPUT_FILE, index=False)
+        
+        print("\n--- SUCCESS ---")
+        print(f"Automatically generated a training set with {len(training_data)} examples.")
+        print(f"File saved to: '{OUTPUT_FILE}'")
+        print("\nFirst 5 examples:")
+        print(training_data.head())
+</file>
+
+<file path="src/proactive_tutor/feature_engineering.py">
+# feature_engineering.py
+
+import pandas as pd
+import numpy as np
+import joblib
+import os
+import re
+from pyBKT.models import Model
+
+def simulate_student_interactions(df_qa, num_students, interactions_per_student):
+    """Generates a realistic, time-series log from static Q&A data."""
+    if df_qa is None or df_qa.empty:
+        return pd.DataFrame()
+
+    print(f"\nSimulating interaction logs for {num_students} students...")
+    all_interactions = []
+
+    for student_id in range(num_students):
+        student_interactions = df_qa.sample(n=interactions_per_student, replace=True).copy()
+        student_interactions['student_id'] = student_id
+
+        mastery = {source: 0.1 for source in df_qa['source'].unique()}
+        correct_list = []
+        for _, row in student_interactions.iterrows():
+            source = row['source']
+            is_correct = 1 if np.random.rand() < mastery.get(source, 0.1) else 0
+            correct_list.append(is_correct)
+            mastery[source] += (1 - mastery.get(source, 0.1)) * 0.25 if is_correct else -mastery.get(source, 0.1) * 0.1
+            mastery[source] = np.clip(mastery[source], 0.01, 0.99)
+
+        student_interactions['is_correct'] = correct_list
+
+        correct_times = np.random.normal(25, 5, size=len(student_interactions))
+        incorrect_times = np.random.normal(60, 15, size=len(student_interactions))
+        student_interactions['response_time_sec'] = np.where(student_interactions['is_correct'] == 1, correct_times, incorrect_times).clip(5, 300)
+
+        student_interactions['timestamp'] = pd.to_datetime(pd.Timestamp.now() + pd.to_timedelta(np.arange(len(student_interactions)), 'm'))
+        all_interactions.append(student_interactions)
+
+    df_simulated = pd.concat(all_interactions, ignore_index=True) if all_interactions else pd.DataFrame()
+    print(f"Simulation complete. Generated {len(df_simulated):,} interactions.")
+    return df_simulated
+
+# --- Helper function for BKT prior mastery calculation ---
+def _calculate_bkt_mastery_for_history(student_skill_history_df, bkt_models, skill_name):
+    """
+    Calculates the prior mastery probability for a skill based on a student's history
+    using the corresponding BKT model.
+    """
+    bkt_model = bkt_models.get(skill_name)
+    if not bkt_model:
+        return [0.5] * len(student_skill_history_df)
+
+    bkt_data = student_skill_history_df.copy()
+    bkt_data['user_id'] = 0 # Dummy user_id for this slice
+    bkt_data['skill_name'] = skill_name
+    bkt_data['correct'] = bkt_data['is_correct']
+    bkt_data['order_id'] = np.arange(len(bkt_data)) + 1
+
+    try:
+        # --- THIS IS THE FIX ---
+        # The .predict() method does NOT take a 'skills' argument.
+        # It uses the skill_name column from the provided data.
+        predictions = bkt_model.predict(data=bkt_data)
+        # --- END OF FIX ---
+
+        initial_prior = bkt_model.params().get(skill_name, [[0.1, 0.1, 0.2, 0.5]])[0][3]
+        prior_masteries = [initial_prior] + predictions['state_predictions'].iloc[:-1].tolist()
+        
+        if len(prior_masteries) != len(student_skill_history_df):
+             print(f"Warning: Mismatch in BKT prior calculation for skill {skill_name}. Expected {len(student_skill_history_df)}, got {len(prior_masteries)}. Using default prior.")
+             return [0.5] * len(student_skill_history_df)
+
+        return prior_masteries
+    except Exception as e:
+        print(f"Warning: BKT prediction failed for skill {skill_name} on student history: {e}. Using default prior.")
+        return [0.5] * len(student_skill_history_df)
+
+
+def create_features(df, skill_encoder, bkt_models=None):
+    """
+    Takes a dataframe of student interactions and engineers the features
+    needed for the LGBM model.
+    """
+    processed_df = df.copy()
+
+    known_sources = skill_encoder.classes_
+    processed_df = processed_df[processed_df['source'].isin(known_sources)].copy()
+
+    if processed_df.empty:
+        return pd.DataFrame()
+
+    processed_df['skill_id_encoded'] = skill_encoder.transform(processed_df['source'])
+    processed_df.sort_values(['student_id', 'timestamp'], inplace=True, kind='mergesort')
+
+    processed_df['prior_is_correct'] = processed_df.groupby('student_id')['is_correct'].shift(1)
+    processed_df['prior_response_time'] = processed_df.groupby('student_id')['response_time_sec'].shift(1)
+    processed_df['skill_attempts'] = processed_df.groupby(['student_id', 'skill_id_encoded']).cumcount()
+    processed_df['skill_correct_sum_prev'] = processed_df.groupby(['student_id', 'skill_id_encoded'])['is_correct'].cumsum().shift(1).fillna(0)
+    processed_df['skill_correct_rate'] = processed_df['skill_correct_sum_prev'] / processed_df['skill_attempts']
+    processed_df['skill_correct_rate'] = processed_df['skill_correct_rate'].fillna(0.5)
+    processed_df.loc[processed_df['skill_attempts'] == 0, 'skill_correct_rate'] = 0.5
+    processed_df.drop(columns=['skill_correct_sum_prev'], inplace=True)
+
+    processed_df['question_length'] = processed_df['question'].str.len().fillna(0)
+
+    if bkt_models:
+        print("Calculating BKT prior mastery for each interaction...")
+        all_masteries = []
+        # We need to process group by group to handle sequential nature of BKT
+        grouped = processed_df.groupby(['student_id', 'skill_id_encoded'])
+        for _, group_df in grouped:
+            # We must get the original skill name to look up the correct BKT model
+            skill_name = skill_encoder.inverse_transform([group_df['skill_id_encoded'].iloc[0]])[0]
+            masteries = _calculate_bkt_mastery_for_history(group_df, bkt_models, skill_name)
+            all_masteries.extend(masteries)
+        
+        # This assignment assumes the order of processed_df is preserved
+        processed_df['bkt_prior_mastery'] = all_masteries
+    else:
+        print("BKT models not provided. 'bkt_prior_mastery' column will be filled with default values.")
+        processed_df['bkt_prior_mastery'] = 0.5
+
+    processed_df.dropna(subset=['prior_is_correct', 'prior_response_time'], inplace=True)
+    
+    return processed_df
+</file>
+
+<file path="src/proactive_tutor/scheduler.py">
+# scheduler.py
+import pandas as pd
+from datetime import datetime, timedelta
+import joblib
+import os
+import re
+
+class SpacedRepetitionScheduler:
+    INTERVALS = [1, 3, 7, 14, 30, 90, 180, 365] 
+    BKT_MASTERY_THRESHOLD = 0.90
+
+    def __init__(self, bkt_models_dir="models/", skill_encoder_path="models/psych_skill_encoder.joblib"):
+        self.student_skill_states = {}
+        self.bkt_models = self._load_bkt_models(bkt_models_dir)
+        self.skill_encoder = joblib.load(skill_encoder_path) if os.path.exists(skill_encoder_path) else None
+        
+        if not self.skill_encoder:
+            print("Warning: Skill encoder not found. Scheduler will operate on skill names directly.")
+
+    def _load_bkt_models(self, models_dir):
+        bkt_models = {}
+        if not os.path.exists(models_dir):
+            print(f"Warning: BKT models directory '{models_dir}' not found. Spaced repetition will be less accurate.")
+            return bkt_models
+        
+        for filename in os.listdir(models_dir):
+            if filename.startswith('bkt_model_') and filename.endswith('.pkl'):
+                # We need to reconstruct the original skill name from the safe filename
+                safe_skill_name = filename.replace('bkt_model_', '').replace('.pkl', '')
+                
+                # This logic assumes the only special character replaced was '/'
+                # You may need to make this more robust if other characters were replaced
+                skill_name_reconstructed = re.sub(r'_', '/', safe_skill_name)
+                
+                try:
+                    # --- THIS IS THE FIX ---
+                    # Use joblib.load() instead of Model.load()
+                    bkt_models[skill_name_reconstructed] = joblib.load(os.path.join(models_dir, filename))
+                    # --- END OF FIX ---
+                except Exception as e:
+                    print(f"Error loading BKT model {filename}: {e}")
+        return bkt_models
+
+    def update_skill_status(self, student_id: int, skill_name: str, is_correct: int, current_timestamp: datetime, bkt_mastery_after_interaction: float):
+        if student_id not in self.student_skill_states:
+            self.student_skill_states[student_id] = {}
+        
+        current_state = self.student_skill_states[student_id].get(skill_name, {'interval_idx': 0, 'last_practice_time': current_timestamp, 'bkt_mastery_at_last_update': 0.0})
+
+        if is_correct == 1 and bkt_mastery_after_interaction >= self.BKT_MASTERY_THRESHOLD:
+            current_state['interval_idx'] = min(current_state['interval_idx'] + 1, len(self.INTERVALS) - 1)
+        elif is_correct == 0:
+            current_state['interval_idx'] = 0
+
+        current_state['last_practice_time'] = current_timestamp
+        current_state['bkt_mastery_at_last_update'] = bkt_mastery_after_interaction
+        self.student_skill_states[student_id][skill_name] = current_state
+
+    def get_skills_due_for_review(self, student_id: int, current_timestamp: datetime) -> list:
+        due_skills = []
+        if student_id not in self.student_skill_states:
+            return due_skills
+        
+        for skill_name, state in self.student_skill_states[student_id].items():
+            last_practice_time = state['last_practice_time']
+            interval_idx = state['interval_idx']
+            
+            if interval_idx == 0 and state['bkt_mastery_at_last_update'] < self.BKT_MASTERY_THRESHOLD:
+                continue
+            
+            next_interval_days = self.INTERVALS[min(interval_idx, len(self.INTERVALS) - 1)]
+            next_review_time = last_practice_time + timedelta(days=next_interval_days)
+            
+            if current_timestamp >= next_review_time:
+                due_skills.append(skill_name)
+        
+        return due_skills
+</file>
+
+<file path="src/reasoning_engine/build_rag_index.py">
+# compute_embeddings.py
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+import os
+import torch # Import the torch library
+
+# --- Configuration ---
+DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
+OUTPUT_FILE = "data/processed/psychology_data_with_embeddings.parquet"
+# This model is small, fast, and effective for sentence-level tasks.
+MODEL_NAME = 'all-MiniLM-L6-v2' 
+
+if __name__ == "__main__":
+    print("--- Starting Embedding Computation ---")
+
+    # --- THIS IS THE FIX: Explicitly set the device to GPU ---
+    # Check if a CUDA-enabled GPU is available, otherwise fall back to CPU
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
+    if device == 'cpu':
+        print("WARNING: GPU not found. Computation will be very slow.")
+    # --- END OF FIX ---
+
+    if not os.path.exists(DATA_FILE):
+        print(f"FATAL: Data file not found at {DATA_FILE}. Please run normalize_psych_data.py first.")
+    else:
+        df = pd.read_parquet(DATA_FILE)
+
+        print(f"Loading sentence-transformer model: '{MODEL_NAME}'...")
+        # Pass the device to the model when you load it
+        model = SentenceTransformer(MODEL_NAME, device=device)
+
+        print(f"Computing embeddings for {len(df)} questions... (This may take a while)")
+        
+        # The .encode() method will now automatically run on the specified device (GPU)
+        embeddings = model.encode(df['question'].tolist(), show_progress_bar=True)
+
+        # The embedding is a 384-dimensional vector for this model.
+        # We'll store it as separate columns in the dataframe.
+        embedding_df = pd.DataFrame(embeddings, index=df.index)
+        embedding_df = embedding_df.add_prefix('embed_')
+
+        # Combine the original dataframe with the new embedding columns
+        df_with_embeddings = pd.concat([df, embedding_df], axis=1)
+
+        print(f"Saving new dataframe with embeddings to '{OUTPUT_FILE}'...")
+        df_with_embeddings.to_parquet(OUTPUT_FILE)
+
+        print("\nSUCCESS: Embeddings computed and saved.")
+        print(f"New dataframe shape: {df_with_embeddings.shape}")
+</file>
+
+<file path="src/reasoning_engine/finetune.py">
+import os
+from datasets import load_dataset
+from transformers import (
+    T5ForConditionalGeneration,
+    T5Tokenizer,
+    Trainer,
+    TrainingArguments,
+    DataCollatorForSeq2Seq,
+)
+
+# --- Configuration ---------------------------------------------------------
+
+TRAINING_DATA_REPO = "adfras/psychology-distractor-data"
+BASE_MODEL          = "t5-small"
+OUTPUT_MODEL_DIR    = "/data/distractor_generator_t5_small"   # survives restarts
+
+os.makedirs(OUTPUT_MODEL_DIR, exist_ok=True)
+
+# --- Main ------------------------------------------------------------------
+
+if __name__ == "__main__":
+    print(f"Fine-tuning {BASE_MODEL} on {TRAINING_DATA_REPO}")
+
+    # 1  Load and subsample the dataset directly on the Hub object
+    hf_dataset = (
+        load_dataset(TRAINING_DATA_REPO, split="train")
+        .shuffle(seed=42)
+        .select(range(min(10_000, len(load_dataset(TRAINING_DATA_REPO, split='train')))))
+    )
+    print(f"Loaded {len(hf_dataset)} examples")
+
+    # 2  Tokenizer and model
+    tokenizer = T5Tokenizer.from_pretrained(BASE_MODEL)
+    model     = T5ForConditionalGeneration.from_pretrained(BASE_MODEL)
+
+    # 3  Pre-processing
+    def preprocess(examples):
+        prefix   = "generate distractor: "
+        inputs   = [
+            f"{prefix}question: {q} answer: {a}"
+            for q, a in zip(examples["question"], examples["correct_answer"])
+        ]
+        model_in = tokenizer(
+            inputs,
+            max_length=512,
+            truncation=True,
+            padding="max_length",
+        )
+        labels = tokenizer(
+            text_target=examples["distractor"],
+            max_length=128,
+            truncation=True,
+            padding="max_length",
+        )
+        model_in["labels"] = labels["input_ids"]
+        return model_in
+
+    tokenized_dataset = hf_dataset.map(
+        preprocess,
+        batched=True,
+        remove_columns=hf_dataset.column_names,
+    )
+
+    # 4  Data collator (avoids double padding)
+    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model, return_tensors="pt")
+
+    # 5  Training arguments
+    training_args = TrainingArguments(
+        output_dir=OUTPUT_MODEL_DIR,
+        num_train_epochs=3,
+        per_device_train_batch_size=8,
+        warmup_steps=500,
+        weight_decay=0.01,
+        logging_dir="./logs",
+        logging_strategy="steps",
+        logging_steps=100,
+        save_strategy="epoch",
+        save_total_limit=2,
+    )
+
+    # 6  Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_dataset,
+        data_collator=data_collator,
+    )
+
+    print("Starting fine-tuning…")
+    trainer.train()
+
+    # 7  Save final artefacts
+    trainer.save_model(OUTPUT_MODEL_DIR)
+    tokenizer.save_pretrained(OUTPUT_MODEL_DIR)
+    print(f"Model saved to {OUTPUT_MODEL_DIR}")
+</file>
+
+<file path="src/reasoning_engine/prepare_data.py">
+# normalize_psych_data.py
+# FINAL CORRECTED VERSION WITH BATCH PROCESSING
+
+import os
+import requests
+import re
+import pandas as pd
+from datasets import load_dataset
+from tqdm import tqdm
+import warnings
+from langdetect import detect, LangDetectException
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# --- Configuration ---
+RAW_DATA_DIR = "data/raw_psych_data"
+NORMALIZED_DATA_DIR = "data/processed"
+os.makedirs(RAW_DATA_DIR, exist_ok=True)
+os.makedirs(NORMALIZED_DATA_DIR, exist_ok=True)
+SCHEMA = ['question', 'answer', 'source', 'licence']
+
+# --- Helper Functions ---
+def download_file(url, local_filename):
+    local_path = os.path.join(RAW_DATA_DIR, local_filename)
+    if os.path.exists(local_path):
+        return local_path
+    print(f"Downloading {url} to {local_path}...")
+    try:
+        with requests.get(url, stream=True, timeout=120) as r:
+            r.raise_for_status()
+            total_size = int(r.headers.get('content-length', 0))
+            with open(local_path, 'wb') as f, tqdm(
+                total=total_size, unit='iB', unit_scale=True, desc=local_filename
+            ) as pbar:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    pbar.update(len(chunk))
+        return local_path
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR: Download failed for {url}. Error: {e}")
+        return None
+
+# This function is no longer used directly but kept for potential single-file use
+def save_normalized_df(df, filename):
+    assert set(df.columns) >= {"question", "answer"}, f"DataFrame for {filename} is missing 'question' or 'answer' columns. Found: {list(df.columns)}"
+    df = df.dropna(subset=['question', 'answer'])
+    df = df[df['question'].astype(str).str.strip() != '']
+    df = df[df['answer'].astype(str).str.strip() != '']
+    df = df[SCHEMA].copy()
+    output_path = os.path.join(NORMALIZED_DATA_DIR, filename)
+    df.to_parquet(output_path, index=False)
+
+# --- Dataset Processing Functions ---
+def process_boltmonkey():
+    print("\n--- Processing: BoltMonkey ---")
+    url = "https://huggingface.co/datasets/BoltMonkey/psychology-question-answer/resolve/main/data/train/train.json?download=true"
+    filepath = download_file(url, "boltmonkey.json")
+    if not filepath: return pd.DataFrame()
+    df = pd.read_json(filepath)
+    df['source'] = 'BoltMonkey/psychology-question-answer'
+    df['licence'] = 'CC-BY-NC'
+    return df
+
+def process_gragroo():
+    print("\n--- Processing: Gragroo ---")
+    url = "https://huggingface.co/datasets/Gragroo/psychology-question-answer_psygpt_with_validation/resolve/main/data/train-00000-of-00001.parquet?download=true"
+    filepath = download_file(url, "gragroo_train.parquet")
+    if not filepath: return pd.DataFrame()
+    pairs = []
+    try:
+        for conv in pd.read_parquet(filepath)["conversations"]:
+            q = None
+            for turn in conv:
+                if turn["from"] == "human": q = turn["value"].strip()
+                elif turn["from"] == "assistant" and q:
+                    pairs.append({"question": q, "answer": turn["value"].strip()})
+                    q = None
+    except Exception as e:
+        print(f"  -> Warning: Could not process Gragroo conversations. Error: {e}")
+    if not pairs: return pd.DataFrame()
+    df = pd.DataFrame(pairs)
+    df["source"] = "Gragroo/psychology-question-answer_psygpt_with_validation"
+    df["licence"] = "CC-BY-NC"
+    return df
+
+def process_psycholexqa():
+    print("\n--- Processing: PsychoLexQA ---")
+    try:
+        ds = load_dataset("aminabbasi/PsychoLexQA", split="train")
+        df = ds.to_pandas().rename(columns={"instruction": "question", "output": "answer"})
+        df["source"] = "PsychoLexQA"
+        df["licence"] = "CC-BY-NC"
+        return df
+    except Exception as e:
+        print(f"ERROR: Could not load PsychoLexQA. Accept the licence on Hugging Face first. Error: {e}")
+        return pd.DataFrame()
+
+def process_mmlu():
+    print("\n--- Processing: MMLU Psychology ---")
+    all_dfs = []
+    for split in ["high_school_psychology", "professional_psychology"]:
+        try:
+            ds = load_dataset("cais/mmlu", name=split, split="test")
+            df = ds.to_pandas()
+            def format_answer(row):
+                choices_text = "\n".join([f"{chr(65+i)}. {choice}" for i, choice in enumerate(row['choices'])])
+                correct_choice = row['choices'][row['answer']]
+                return f"{row['question']}\n\n{choices_text}", f"The correct answer is {chr(65 + row['answer'])}: {correct_choice}"
+            df['question'], df['answer'] = zip(*df.apply(format_answer, axis=1))
+            df['source'], df['licence'] = f'MMLU/{split}', 'MIT'
+            all_dfs.append(df)
+        except Exception as e:
+            print(f"ERROR: Could not process MMLU split {split}. Error: {e}")
+    return pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()
+
+# --- Main Execution ---
+if __name__ == "__main__":
+    all_dataframes = []
+    processing_functions = [process_boltmonkey, process_gragroo, process_psycholexqa, process_mmlu]
+    
+    for func in processing_functions:
+        try:
+            df = func()
+            if not df.empty:
+                all_dataframes.append(df[SCHEMA])
+        except Exception as e:
+            print(f"A critical error occurred during execution of {func.__name__}: {e}")
+
+    if all_dataframes:
+        print("\n--- Combining all datasets ---")
+        final_df = pd.concat(all_dataframes, ignore_index=True)
+        
+        print(f"\nApplying final quality filters to {len(final_df)} combined rows...")
+        original_rows = len(final_df)
+        
+        # Filter 1: Question Length (pre-filter)
+        final_df = final_df[final_df['question'].astype(str).str.len() >= 10].copy()
+        
+        # --- NEW: Robust Language Detection with Batching ---
+        print("Detecting language for each question (in batches)...")
+        
+        batch_size = 20000  # Process 20,000 rows at a time for speed
+        english_indices = []
+
+        # Use a loop over batches to avoid hanging on a single large apply()
+        for start in tqdm(range(0, len(final_df), batch_size), desc="Language Detection Batches"):
+            end = min(start + batch_size, len(final_df))
+            batch_df = final_df.iloc[start:end]
+            
+            # This internal apply is on a small, safe batch
+            def is_english(text):
+                try:
+                    return detect(str(text)) == 'en'
+                except LangDetectException:
+                    return False
+            
+            mask = batch_df['question'].apply(is_english)
+            # Get the original indices of the English rows from this batch
+            batch_english_indices = batch_df[mask].index.tolist()
+            english_indices.extend(batch_english_indices)
+
+        print(f"\nFound {len(english_indices)} English questions.")
+        final_df = final_df.loc[english_indices]
+        # --- END OF NEW BATCHING CODE ---
+
+        rows_removed = original_rows - len(final_df)
+        if rows_removed > 0:
+            print(f"-> SUCCESS: Filtered out {rows_removed} rows due to length or language.")
+        
+        # Save the final, clean dataset
+        final_output_path = os.path.join(NORMALIZED_DATA_DIR, "ALL_PSYCHOLOGY_DATA_normalized.parquet")
+        final_df.to_parquet(final_output_path, index=False)
+        print(f"\nSaved final combined data to {final_output_path} ({len(final_df)} rows)")
+        
+        print("\n--- Final Summary ---")
+        print("Breakdown by source:")
+        print(final_df['source'].value_counts())
+    else:
+        print("\nNo data was processed successfully. Check logs for errors.")
+</file>
+
+<file path="tests/test_data_quality.py">
+# test_data_quality.py
+import pytest
+import pandas as pd
+import os
+
+# --- Configuration ---
+PROCESSED_DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
+EXPECTED_COLUMNS = ['question', 'answer', 'source', 'licence']
+EXPECTED_SOURCES = [
+    'BoltMonkey/psychology-question-answer',
+    'Gragroo/psychology-question-answer_psygpt_with_validation',
+    'PsychoLexQA',
+    'MMLU/professional_psychology',
+    'MMLU/high_school_psychology'
+]
+MIN_QUESTION_LENGTH = 10  # A reasonable minimum length for a question
+MAX_QUESTION_LENGTH = 1500 # A reasonable maximum
+
+@pytest.fixture(scope="module")
+def data():
+    """A pytest fixture to load the main dataset once for all tests."""
+    if not os.path.exists(PROCESSED_DATA_FILE):
+        pytest.fail(f"FATAL: Processed data file not found at {PROCESSED_DATA_FILE}. Run normalize_psych_data.py first.")
+    return pd.read_parquet(PROCESSED_DATA_FILE)
+
+# --- Test Cases ---
+
+def test_file_exists():
+    """Test 1: Ensures the processed data file was actually created."""
+    assert os.path.exists(PROCESSED_DATA_FILE), "The final processed parquet file is missing."
+
+def test_schema_is_correct(data):
+    """Test 2: Validates that all expected columns are present."""
+    for col in EXPECTED_COLUMNS:
+        assert col in data.columns, f"Missing expected column: '{col}'"
+
+def test_no_missing_critical_data(data):
+    """Test 3: Ensures there are no nulls in the core 'question' and 'answer' fields."""
+    assert data['question'].isnull().sum() == 0, "There are missing values in the 'question' column."
+    assert data['answer'].isnull().sum() == 0, "There are missing values in the 'answer' column."
+
+def test_content_plausibility(data):
+    """Test 4: Checks if the data content is reasonable (e.g., not too short)."""
+    shortest_question = data['question'].str.len().min()
+    assert shortest_question >= MIN_QUESTION_LENGTH, f"Found a question with length {shortest_question}, which is shorter than the minimum threshold of {MIN_QUESTION_LENGTH}."
+    longest_question = data['question'].str.len().max()
+    assert longest_question <= MAX_QUESTION_LENGTH, f"Found a question with length {longest_question}, which is longer than the maximum threshold of {MAX_QUESTION_LENGTH}."
+
+
+def test_source_column_is_valid(data):
+    """Test 5: Checks if the 'source' column contains only known, expected values."""
+    unexpected_sources = set(data['source'].unique()) - set(EXPECTED_SOURCES)
+    assert not unexpected_sources, f"Found unexpected data sources: {unexpected_sources}"
+</file>
+
+<file path="tests/test_evaluation.py">
+# test_model_performance.py
+import pytest
+import pandas as pd
+import joblib
+import os
+from sklearn.metrics import roc_auc_score
+from feature_engineering import create_features, simulate_student_interactions
+
+# --- Configuration ---
+MODELS_DIR = "models/"
+LGBM_MODEL_PATH = os.path.join(MODELS_DIR, "lgbm_psych_predictor_enriched.joblib")
+SKILL_ENCODER_PATH = os.path.join(MODELS_DIR, "psych_skill_encoder.joblib")
+GOLDEN_TEST_SET_PATH = "tests/golden_test_set.parquet"
+
+MINIMUM_ACCEPTABLE_AUC = 0.75
+
+@pytest.fixture(scope="module")
+def models_and_data():
+    """A single fixture to set up everything needed for the tests."""
+    required_files = [LGBM_MODEL_PATH, SKILL_ENCODER_PATH, GOLDEN_TEST_SET_PATH]
+    if not all(os.path.exists(p) for p in required_files):
+        pytest.fail("FATAL: One or more required files are missing. Please run the notebook and create the golden test set.")
+    
+    lgbm_model = joblib.load(LGBM_MODEL_PATH)
+    skill_encoder = joblib.load(SKILL_ENCODER_PATH)
+    golden_df_static = pd.read_parquet(GOLDEN_TEST_SET_PATH)
+
+    # Use the REAL simulation logic to create a test history
+    golden_df_simulated = simulate_student_interactions(
+        df_qa=golden_df_static, 
+        num_students=50, 
+        interactions_per_student=20
+    )
+    
+    # Process the golden data using the EXACT same feature engineering function
+    processed_golden_data = create_features(golden_df_simulated, skill_encoder)
+
+    return {
+        "lgbm": lgbm_model,
+        "processed_data": processed_golden_data
+    }
+
+def test_lgbm_performance_threshold(models_and_data):
+    """TRUST CHECK 1: Is the model's performance on a fixed dataset above our quality bar?"""
+    model = models_and_data["lgbm"]
+    test_df = models_and_data["processed_data"]
+    
+    if test_df.empty:
+        pytest.fail("Processed golden test set is empty. Check feature engineering and data.")
+
+    features = ['prior_response_time', 'prior_is_correct', 'skill_id_encoded', 'skill_attempts', 'skill_correct_rate', 'question_length']
+    target = 'is_correct'
+    
+    X_test = test_df[features]
+    y_test = test_df[target]
+    
+    predictions = model.predict_proba(X_test)[:, 1]
+    auc_score = roc_auc_score(y_test, predictions)
+    
+    print(f"\nModel AUC on golden test set: {auc_score:.4f}")
+    assert auc_score >= MINIMUM_ACCEPTABLE_AUC, f"Model performance has dropped below the threshold! AUC: {auc_score:.4f} < {MINIMUM_ACCEPTABLE_AUC}"
+
+def test_model_feature_importance_is_stable(models_and_data):
+    """TRUST CHECK 2: Does the model still 'think' the same way?"""
+    model = models_and_data["lgbm"]
+    
+    feature_names = model.feature_name_
+    importances = model.feature_importances_
+    
+    importance_dict = dict(zip(feature_names, importances))
+    most_important_feature = max(importance_dict, key=importance_dict.get)
+    
+    print(f"\nMost important feature found: '{most_important_feature}'")
+    assert most_important_feature == 'skill_correct_rate', "The model's most important feature has changed unexpectedly from 'skill_correct_rate'."
+</file>
+
+<file path=".gitignore">
+# --- Virtual Environment ---
+# Never commit the virtual environment folder
+.venv/
+venv/
+env/
+
+# --- Data and Model Files ---
+# Ignore the contents of these directories, but keep the directories themselves
+data/
+models/
+tests/golden_test_set.parquet
+
+# --- Python & Jupyter Cache ---
+# Standard Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# --- IDE/Editor specific files ---
+.vscode/
+.idea/
+</file>
+
+<file path="tests/create_golden_set.py">
+# create_golden_set.py
+# This script should be run only ONCE to create the permanent benchmark dataset.
+
+import pandas as pd
+import os
+
+# --- Configuration ---
+PROCESSED_DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
+TESTS_DIR = "tests"
+GOLDEN_SET_PATH = os.path.join(TESTS_DIR, "golden_test_set.parquet")
+SAMPLE_SIZE = 1000
+
+# --- Main Logic ---
+if __name__ == "__main__":
+    print("--- Creating Golden Test Set ---")
+
+    # 1. Ensure the tests directory exists
+    os.makedirs(TESTS_DIR, exist_ok=True)
+    
+    # 2. Check if the source data file exists
+    if not os.path.exists(PROCESSED_DATA_FILE):
+        print(f"FATAL: Source data file not found at '{PROCESSED_DATA_FILE}'.")
+        print("Please run normalize_psych_data.py first.")
+    
+    # 3. Check if the golden set already exists
+    elif os.path.exists(GOLDEN_SET_PATH):
+        print(f"INFO: Golden test set already exists at '{GOLDEN_SET_PATH}'. No action taken.")
+        print("If you need to recreate it, please delete the old file first.")
+    
+    # 4. Create the file if it's missing
+    else:
+        try:
+            print(f"Loading source data from '{PROCESSED_DATA_FILE}'...")
+            df = pd.read_parquet(PROCESSED_DATA_FILE)
+            
+            print(f"Taking a fixed, random sample of {SAMPLE_SIZE} rows...")
+            # Using random_state=42 ensures the sample is the same every time
+            golden_set = df.sample(n=SAMPLE_SIZE, random_state=42)
+            
+            print(f"Saving golden test set to '{GOLDEN_SET_PATH}'...")
+            golden_set.to_parquet(GOLDEN_SET_PATH, index=False)
+            
+            print("\nSUCCESS: Golden test set created successfully.")
+            
+        except Exception as e:
+            print(f"\nAn error occurred: {e}")
+</file>
+
+<file path="requirements.txt">
+# ===================================================================
+#  Definitive Requirements for Python 3.11 on Windows
+# ===================================================================
+
+# --- Proactive Tutor & Data Science ---
+# Installing the official pyBKT from Git, but with --no-binary to force
+# the pure Python mode and avoid the Windows C++ build error.
+git+https://github.com/CAHLR/pyBKT.git#egg=pyBKT
+lightgbm==4.3.0
+scikit-learn==1.4.2
+joblib
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.12.0
+cython
+
+# --- Core LLM & Fine-Tuning Libraries ---
+transformers>=4.41.0
+accelerate
+bitsandbytes
+torch
+trl
+einops
+peft
+
+# --- Shared Libraries ---
+sentence-transformers
+faiss-cpu
+datasets
+pyarrow
+tqdm
+requests
+langdetect
+pytest
+evaluate
+rouge_score
+jupyterlab
+ipykernel
+seaborn
+matplotlib
+</file>
+
+<file path="README.md">
+---
+title: Psychology Tutor Engine
+sdk: docker
+app_port: 7860
+---
+
+# Psychology Tutor Engine - Interactive Workspace
+
+This Space launches a JupyterLab environment on the free `cpu-basic` tier.
+
+From here you can run the data processing pipeline, the main tutor modeling notebook, or manually start the T5 fine-tuning script.
+</file>
+
+</files>

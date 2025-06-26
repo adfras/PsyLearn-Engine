@@ -1,0 +1,17 @@
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+
+# Data and Models (gitignore these directories)
+data/
+models/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Reports and logs
+*.txt
+*.log
