@@ -43,7 +43,7 @@ The content is organized as follows:
 .gitignore
 notebooks/1_train_policy_model.ipynb
 README.md
-requirements.txt
+scripts/explore_raw_data.py
 scripts/investigate_data.py
 scripts/verify_training_data.py
 src/proactive_tutor/data_augmentation.py
@@ -59,6 +59,26 @@ tests/test_evaluation.py
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+
+# Data and Models (gitignore these directories)
+data/
+models/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Reports and logs
+*.txt
+*.log
+</file>
 
 <file path="notebooks/1_train_policy_model.ipynb">
 {
@@ -211,6 +231,218 @@ This section contains the contents of the repository's files.
  "nbformat": 4,
  "nbformat_minor": 4
 }
+</file>
+
+<file path="README.md">
+---
+title: Psychology Tutor Engine
+sdk: docker
+app_port: 7860
+---
+
+# Psychology Tutor Engine - Interactive Workspace
+
+This Space launches a JupyterLab environment on the free `cpu-basic` tier.
+
+From here you can run the data processing pipeline, the main tutor modeling notebook, or manually start the T5 fine-tuning script.
+</file>
+
+<file path="scripts/explore_raw_data.py">
+# scripts/explore_raw_data.py
+
+import pandas as pd
+from pathlib import Path
+import zipfile
+import io
+import ast
+from collections import Counter
+from contextlib import redirect_stdout
+
+# --- CONFIGURATION ---
+RAW_DATA_ROOT = Path("data/1_raw_source_data")
+OUTPUT_FILENAME = "raw_data_diagnostics_report.txt"
+SAMPLE_ROWS = 2
+SAMPLE_LINES = 5
+FILES_TO_IGNORE = ['.DS_Store', 'state.json', 'dataset_info.json', '.arrow']
+WIDE_FORMAT_THRESHOLD = 5 # If a column prefix appears this many times, flag as wide.
+
+def print_header(header):
+    print("\n" + "="*80)
+    print(f"=== {header.upper()} ===")
+    print("="*80)
+
+# --- DIAGNOSTICS & REPORTING ---
+
+def diagnose_and_report(df: pd.DataFrame, file_path: Path, summary_findings: list):
+    """Analyzes a DataFrame for common structural problems and records findings."""
+    print("\n  --- DIAGNOSTICS ---")
+    
+    # 1. Wide Format Detection
+    try:
+        prefixes = [col.split('(')[0] for col in df.columns]
+        prefix_counts = Counter(prefixes)
+        most_common = prefix_counts.most_common(1)[0]
+        if most_common[1] > WIDE_FORMAT_THRESHOLD:
+            message = f"File appears to be in a WIDE format. Prefix '{most_common[0]}' is repeated {most_common[1]} times."
+            print(f"  [!] Issue Detected: {message}")
+            summary_findings.append({
+                'file': file_path.name,
+                'issue': 'Complex Structure (Wide Format)',
+                'details': message,
+                'action': 'Reshape data from wide to long format (melt).'
+            })
+            return # Stop further column analysis if it's wide format
+    except Exception: pass # Ignore errors in this diagnostic
+
+    # 2. Stringified Object Detection
+    for col in df.select_dtypes(include=['object']).columns:
+        try:
+            sample = df[col].dropna().head(3)
+            if sample.empty: continue
+            
+            # Check if sample values look like dicts or lists and can be parsed
+            is_complex = all(val.strip().startswith(('{', '[')) for val in sample)
+            if is_complex:
+                ast.literal_eval(sample.iloc[0]) # Test parsing on one
+                message = f"Column '{col}' appears to contain stringified Python objects (dicts/lists)."
+                print(f"  [!] Issue Detected: {message}")
+                summary_findings.append({
+                    'file': file_path.name,
+                    'issue': 'Complex Structure (Stringified Object)',
+                    'details': message,
+                    'action': 'Use ast.literal_eval to parse this column during ingestion.'
+                })
+        except (SyntaxError, ValueError, TypeError): continue # Not a valid literal
+        except Exception: pass # Ignore other errors
+
+    print("  [+] No major structural issues detected.")
+
+def print_summary_report(findings: list):
+    """Prints a summary of all detected issues at the end of the report."""
+    print("\n" + "="*80)
+    print("--- SUMMARY OF FINDINGS ---")
+    print("="*80)
+
+    if not findings:
+        print("\nNo programmatic issues were detected in the data files.")
+        
+    # Manually add non-detectable issues from user analysis for completeness
+    findings.append({'file': 'boltmonkey.json, gragroo_train.parquet', 'issue': 'Critical - Licensing', 'action': 'Verify data provenance and license before use.'})
+    findings.append({'file': 'All Non-Psychology Sets', 'issue': 'Medium - Domain Mismatch', 'action': 'Consider a staged curriculum learning approach.'})
+
+    # Group findings by issue type for a clean report
+    grouped_findings = {}
+    for f in findings:
+        if f['issue'] not in grouped_findings:
+            grouped_findings[f['issue']] = []
+        grouped_findings[f['issue']].append(f)
+
+    for issue_type, items in grouped_findings.items():
+        print(f"\n--- ISSUE: {issue_type} ---")
+        for item in items:
+            print(f"  - File(s): {item['file']}")
+            if 'details' in item:
+                print(f"    Details: {item['details']}")
+            print(f"    Action:  {item['action']}")
+
+# --- FILE EXPLORATION LOGIC ---
+
+def explore_dataframe(df: pd.DataFrame, file_path: Path, summary_findings: list):
+    """Prints info and runs diagnostics for a pandas DataFrame."""
+    print(f"  - Shape: {df.shape}")
+    print(f"  - Columns: {df.columns.to_list()}")
+    diagnose_and_report(df, file_path, summary_findings)
+    print("\n  --- SAMPLE DATA ---")
+    with pd.option_context('display.max_columns', None, 'display.width', 120, 'display.max_colwidth', 80):
+        print(df.head(SAMPLE_ROWS))
+
+def explore_text_file(reader, file_path: Path):
+    """Prints sample lines from a plain text file."""
+    print(f"  - File Type: Plain Text. First {SAMPLE_LINES} lines:")
+    for i, line in enumerate(reader):
+        if i >= SAMPLE_LINES: break
+        print(f"    {line.strip()}")
+
+def explore_zip_archive(zip_path: Path, summary: list):
+    print(f"\nInspecting ZIP archive: {zip_path.resolve()}")
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        file_list = [f for f in z.namelist() if Path(f).name not in FILES_TO_IGNORE and not f.startswith('__MACOSX')]
+        if not file_list: return print("  - Archive empty or contains only ignored metadata.")
+        
+        print(f"  - Contains {len(file_list)} file(s): {file_list[:5] if len(file_list) > 5 else file_list}")
+        first_data_file = next((f for f in file_list if f.endswith(('.json', '.csv', '.txt', '.jsonl'))), None)
+
+        if not first_data_file: return print("  - No sampleable data files found in archive.")
+        
+        print(f"\n  --- Sampling first data file from zip: '{first_data_file}' ---")
+        with z.open(first_data_file) as internal_file:
+            explore_single_file(internal_file, Path(first_data_file), summary)
+
+def explore_single_file(file_handle, file_path: Path, summary: list):
+    """Processes a single file object, either from disk or from a zip."""
+    try:
+        # Handle plain text files first
+        if file_path.suffix == '.txt':
+            reader = io.TextIOWrapper(file_handle, 'utf-8', errors='ignore')
+            explore_text_file(reader, file_path)
+            return
+
+        # Handle tabular data with smart encoding
+        encoding_used = 'utf-8'
+        try:
+            content = file_handle.read()
+            text_content = content.decode('utf-8')
+        except UnicodeDecodeError:
+            encoding_used = 'latin-1'
+            text_content = content.decode('latin-1')
+        except AttributeError: # Already a text stream
+            text_content = file_handle.read()
+        
+        print(f"  - Text Encoding: {encoding_used}")
+        # Use StringIO to treat the decoded text as a file for pandas
+        text_stream = io.StringIO(text_content)
+        
+        if file_path.suffix == '.parquet':
+            df = pd.read_parquet(file_handle) # Parquet needs original handle
+        elif file_path.suffix == '.csv':
+            df = pd.read_csv(text_stream, on_bad_lines='skip')
+        else: # JSON / JSONL
+            df = pd.read_json(text_stream, lines=file_path.suffix == '.jsonl')
+        
+        explore_dataframe(df, file_path, summary)
+
+    except Exception as e:
+        print(f"  [ERROR] Could not read or process file '{file_path.name}'. Reason: {e}")
+
+def main():
+    """Main function to run the exploration and save the report."""
+    script_dir = Path(__file__).parent
+    output_file_path = script_dir / OUTPUT_FILENAME
+    print(f"Starting data diagnostics. Report will be saved to:\n{output_file_path.resolve()}")
+    
+    summary_findings = []
+    
+    with open(output_file_path, 'w', encoding='utf-8') as f:
+        with redirect_stdout(f):
+            print("PSYCHOLOGY TUTOR ENGINE - RAW DATA DIAGNOSTICS REPORT")
+            for data_dir in sorted(RAW_DATA_ROOT.iterdir()):
+                if data_dir.is_dir():
+                    print_header(data_dir.name)
+                    for file_path in sorted(data_dir.glob("**/*")):
+                        if file_path.is_file() and file_path.name not in FILES_TO_IGNORE:
+                            if file_path.suffix == '.zip':
+                                explore_zip_archive(file_path, summary_findings)
+                            else:
+                                print(f"\nAnalyzing file: {file_path.resolve()}")
+                                with open(file_path, 'rb') as disk_file:
+                                    explore_single_file(disk_file, file_path, summary_findings)
+            
+            print_summary_report(summary_findings)
+
+    print("\nDiagnostics complete. Report successfully saved.")
+
+if __name__ == "__main__":
+    main()
 </file>
 
 <file path="scripts/investigate_data.py">
@@ -700,59 +932,6 @@ class SpacedRepetitionScheduler:
         return due_skills
 </file>
 
-<file path="src/reasoning_engine/build_rag_index.py">
-# compute_embeddings.py
-import pandas as pd
-from sentence_transformers import SentenceTransformer
-import os
-import torch # Import the torch library
-
-# --- Configuration ---
-DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
-OUTPUT_FILE = "data/processed/psychology_data_with_embeddings.parquet"
-# This model is small, fast, and effective for sentence-level tasks.
-MODEL_NAME = 'all-MiniLM-L6-v2' 
-
-if __name__ == "__main__":
-    print("--- Starting Embedding Computation ---")
-
-    # --- THIS IS THE FIX: Explicitly set the device to GPU ---
-    # Check if a CUDA-enabled GPU is available, otherwise fall back to CPU
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Using device: {device}")
-    if device == 'cpu':
-        print("WARNING: GPU not found. Computation will be very slow.")
-    # --- END OF FIX ---
-
-    if not os.path.exists(DATA_FILE):
-        print(f"FATAL: Data file not found at {DATA_FILE}. Please run normalize_psych_data.py first.")
-    else:
-        df = pd.read_parquet(DATA_FILE)
-
-        print(f"Loading sentence-transformer model: '{MODEL_NAME}'...")
-        # Pass the device to the model when you load it
-        model = SentenceTransformer(MODEL_NAME, device=device)
-
-        print(f"Computing embeddings for {len(df)} questions... (This may take a while)")
-        
-        # The .encode() method will now automatically run on the specified device (GPU)
-        embeddings = model.encode(df['question'].tolist(), show_progress_bar=True)
-
-        # The embedding is a 384-dimensional vector for this model.
-        # We'll store it as separate columns in the dataframe.
-        embedding_df = pd.DataFrame(embeddings, index=df.index)
-        embedding_df = embedding_df.add_prefix('embed_')
-
-        # Combine the original dataframe with the new embedding columns
-        df_with_embeddings = pd.concat([df, embedding_df], axis=1)
-
-        print(f"Saving new dataframe with embeddings to '{OUTPUT_FILE}'...")
-        df_with_embeddings.to_parquet(OUTPUT_FILE)
-
-        print("\nSUCCESS: Embeddings computed and saved.")
-        print(f"New dataframe shape: {df_with_embeddings.shape}")
-</file>
-
 <file path="src/reasoning_engine/finetune.py">
 import os
 from datasets import load_dataset
@@ -851,224 +1030,100 @@ if __name__ == "__main__":
     print(f"Model saved to {OUTPUT_MODEL_DIR}")
 </file>
 
-<file path="src/reasoning_engine/prepare_data.py">
-# normalize_psych_data.py
-# FINAL CORRECTED VERSION WITH BATCH PROCESSING
+<file path="tests/create_golden_set.py">
+# create_golden_set.py
+# This script should be run only ONCE to create the permanent benchmark dataset.
 
-import os
-import requests
-import re
-import pandas as pd
-from datasets import load_dataset
-from tqdm import tqdm
-import warnings
-from langdetect import detect, LangDetectException
-
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-# --- Configuration ---
-RAW_DATA_DIR = "data/raw_psych_data"
-NORMALIZED_DATA_DIR = "data/processed"
-os.makedirs(RAW_DATA_DIR, exist_ok=True)
-os.makedirs(NORMALIZED_DATA_DIR, exist_ok=True)
-SCHEMA = ['question', 'answer', 'source', 'licence']
-
-# --- Helper Functions ---
-def download_file(url, local_filename):
-    local_path = os.path.join(RAW_DATA_DIR, local_filename)
-    if os.path.exists(local_path):
-        return local_path
-    print(f"Downloading {url} to {local_path}...")
-    try:
-        with requests.get(url, stream=True, timeout=120) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get('content-length', 0))
-            with open(local_path, 'wb') as f, tqdm(
-                total=total_size, unit='iB', unit_scale=True, desc=local_filename
-            ) as pbar:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    pbar.update(len(chunk))
-        return local_path
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: Download failed for {url}. Error: {e}")
-        return None
-
-# This function is no longer used directly but kept for potential single-file use
-def save_normalized_df(df, filename):
-    assert set(df.columns) >= {"question", "answer"}, f"DataFrame for {filename} is missing 'question' or 'answer' columns. Found: {list(df.columns)}"
-    df = df.dropna(subset=['question', 'answer'])
-    df = df[df['question'].astype(str).str.strip() != '']
-    df = df[df['answer'].astype(str).str.strip() != '']
-    df = df[SCHEMA].copy()
-    output_path = os.path.join(NORMALIZED_DATA_DIR, filename)
-    df.to_parquet(output_path, index=False)
-
-# --- Dataset Processing Functions ---
-def process_boltmonkey():
-    print("\n--- Processing: BoltMonkey ---")
-    url = "https://huggingface.co/datasets/BoltMonkey/psychology-question-answer/resolve/main/data/train/train.json?download=true"
-    filepath = download_file(url, "boltmonkey.json")
-    if not filepath: return pd.DataFrame()
-    df = pd.read_json(filepath)
-    df['source'] = 'BoltMonkey/psychology-question-answer'
-    df['licence'] = 'CC-BY-NC'
-    return df
-
-def process_gragroo():
-    print("\n--- Processing: Gragroo ---")
-    url = "https://huggingface.co/datasets/Gragroo/psychology-question-answer_psygpt_with_validation/resolve/main/data/train-00000-of-00001.parquet?download=true"
-    filepath = download_file(url, "gragroo_train.parquet")
-    if not filepath: return pd.DataFrame()
-    pairs = []
-    try:
-        for conv in pd.read_parquet(filepath)["conversations"]:
-            q = None
-            for turn in conv:
-                if turn["from"] == "human": q = turn["value"].strip()
-                elif turn["from"] == "assistant" and q:
-                    pairs.append({"question": q, "answer": turn["value"].strip()})
-                    q = None
-    except Exception as e:
-        print(f"  -> Warning: Could not process Gragroo conversations. Error: {e}")
-    if not pairs: return pd.DataFrame()
-    df = pd.DataFrame(pairs)
-    df["source"] = "Gragroo/psychology-question-answer_psygpt_with_validation"
-    df["licence"] = "CC-BY-NC"
-    return df
-
-def process_psycholexqa():
-    print("\n--- Processing: PsychoLexQA ---")
-    try:
-        ds = load_dataset("aminabbasi/PsychoLexQA", split="train")
-        df = ds.to_pandas().rename(columns={"instruction": "question", "output": "answer"})
-        df["source"] = "PsychoLexQA"
-        df["licence"] = "CC-BY-NC"
-        return df
-    except Exception as e:
-        print(f"ERROR: Could not load PsychoLexQA. Accept the licence on Hugging Face first. Error: {e}")
-        return pd.DataFrame()
-
-def process_mmlu():
-    print("\n--- Processing: MMLU Psychology ---")
-    all_dfs = []
-    for split in ["high_school_psychology", "professional_psychology"]:
-        try:
-            ds = load_dataset("cais/mmlu", name=split, split="test")
-            df = ds.to_pandas()
-            def format_answer(row):
-                choices_text = "\n".join([f"{chr(65+i)}. {choice}" for i, choice in enumerate(row['choices'])])
-                correct_choice = row['choices'][row['answer']]
-                return f"{row['question']}\n\n{choices_text}", f"The correct answer is {chr(65 + row['answer'])}: {correct_choice}"
-            df['question'], df['answer'] = zip(*df.apply(format_answer, axis=1))
-            df['source'], df['licence'] = f'MMLU/{split}', 'MIT'
-            all_dfs.append(df)
-        except Exception as e:
-            print(f"ERROR: Could not process MMLU split {split}. Error: {e}")
-    return pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()
-
-# --- Main Execution ---
-if __name__ == "__main__":
-    all_dataframes = []
-    processing_functions = [process_boltmonkey, process_gragroo, process_psycholexqa, process_mmlu]
-    
-    for func in processing_functions:
-        try:
-            df = func()
-            if not df.empty:
-                all_dataframes.append(df[SCHEMA])
-        except Exception as e:
-            print(f"A critical error occurred during execution of {func.__name__}: {e}")
-
-    if all_dataframes:
-        print("\n--- Combining all datasets ---")
-        final_df = pd.concat(all_dataframes, ignore_index=True)
-        
-        print(f"\nApplying final quality filters to {len(final_df)} combined rows...")
-        original_rows = len(final_df)
-        
-        # Filter 1: Question Length (pre-filter)
-        final_df = final_df[final_df['question'].astype(str).str.len() >= 10].copy()
-        
-        # --- NEW: Robust Language Detection with Batching ---
-        print("Detecting language for each question (in batches)...")
-        
-        batch_size = 20000  # Process 20,000 rows at a time for speed
-        english_indices = []
-
-        # Use a loop over batches to avoid hanging on a single large apply()
-        for start in tqdm(range(0, len(final_df), batch_size), desc="Language Detection Batches"):
-            end = min(start + batch_size, len(final_df))
-            batch_df = final_df.iloc[start:end]
-            
-            # This internal apply is on a small, safe batch
-            def is_english(text):
-                try:
-                    return detect(str(text)) == 'en'
-                except LangDetectException:
-                    return False
-            
-            mask = batch_df['question'].apply(is_english)
-            # Get the original indices of the English rows from this batch
-            batch_english_indices = batch_df[mask].index.tolist()
-            english_indices.extend(batch_english_indices)
-
-        print(f"\nFound {len(english_indices)} English questions.")
-        final_df = final_df.loc[english_indices]
-        # --- END OF NEW BATCHING CODE ---
-
-        rows_removed = original_rows - len(final_df)
-        if rows_removed > 0:
-            print(f"-> SUCCESS: Filtered out {rows_removed} rows due to length or language.")
-        
-        # Save the final, clean dataset
-        final_output_path = os.path.join(NORMALIZED_DATA_DIR, "ALL_PSYCHOLOGY_DATA_normalized.parquet")
-        final_df.to_parquet(final_output_path, index=False)
-        print(f"\nSaved final combined data to {final_output_path} ({len(final_df)} rows)")
-        
-        print("\n--- Final Summary ---")
-        print("Breakdown by source:")
-        print(final_df['source'].value_counts())
-    else:
-        print("\nNo data was processed successfully. Check logs for errors.")
-</file>
-
-<file path="tests/test_data_quality.py">
-# test_data_quality.py
-import pytest
 import pandas as pd
 import os
 
 # --- Configuration ---
 PROCESSED_DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
-EXPECTED_COLUMNS = ['question', 'answer', 'source', 'licence']
+TESTS_DIR = "tests"
+GOLDEN_SET_PATH = os.path.join(TESTS_DIR, "golden_test_set.parquet")
+SAMPLE_SIZE = 1000
+
+# --- Main Logic ---
+if __name__ == "__main__":
+    print("--- Creating Golden Test Set ---")
+
+    # 1. Ensure the tests directory exists
+    os.makedirs(TESTS_DIR, exist_ok=True)
+    
+    # 2. Check if the source data file exists
+    if not os.path.exists(PROCESSED_DATA_FILE):
+        print(f"FATAL: Source data file not found at '{PROCESSED_DATA_FILE}'.")
+        print("Please run normalize_psych_data.py first.")
+    
+    # 3. Check if the golden set already exists
+    elif os.path.exists(GOLDEN_SET_PATH):
+        print(f"INFO: Golden test set already exists at '{GOLDEN_SET_PATH}'. No action taken.")
+        print("If you need to recreate it, please delete the old file first.")
+    
+    # 4. Create the file if it's missing
+    else:
+        try:
+            print(f"Loading source data from '{PROCESSED_DATA_FILE}'...")
+            df = pd.read_parquet(PROCESSED_DATA_FILE)
+            
+            print(f"Taking a fixed, random sample of {SAMPLE_SIZE} rows...")
+            # Using random_state=42 ensures the sample is the same every time
+            golden_set = df.sample(n=SAMPLE_SIZE, random_state=42)
+            
+            print(f"Saving golden test set to '{GOLDEN_SET_PATH}'...")
+            golden_set.to_parquet(GOLDEN_SET_PATH, index=False)
+            
+            print("\nSUCCESS: Golden test set created successfully.")
+            
+        except Exception as e:
+            print(f"\nAn error occurred: {e}")
+</file>
+
+<file path="tests/test_data_quality.py">
+# tests/test_data_quality.py
+import pytest
+import pandas as pd
+from pathlib import Path
+
+# --- Configuration Synchronized with prepare_data.py ---
+PROCESSED_DATA_FILE = Path("data/2_processed_data/normalized_questions.parquet")
+
+# The columns we ACTUALLY generate.
+# Note: 'licence' is not part of the current pipeline, so it is not tested for.
+EXPECTED_COLUMNS = ['question', 'answer', 'source']
+
+# The data sources we ACTUALLY process. This ensures no unexpected data has been added.
 EXPECTED_SOURCES = [
-    'BoltMonkey/psychology-question-answer',
-    'Gragroo/psychology-question-answer_psygpt_with_validation',
-    'PsychoLexQA',
-    'MMLU/professional_psychology',
-    'MMLU/high_school_psychology'
+    'gsm8k',
+    'pubmedqa',
+    'boltmonkey',
+    'mentat',
+    'gragroo',
+    'proofwriter',
+    'thoughtsource',
 ]
-MIN_QUESTION_LENGTH = 10  # A reasonable minimum length for a question
-MAX_QUESTION_LENGTH = 1500 # A reasonable maximum
+
+MIN_QUESTION_LENGTH = 10
+MAX_QUESTION_LENGTH = 1500 # A great check to prevent overly long content.
 
 @pytest.fixture(scope="module")
 def data():
     """A pytest fixture to load the main dataset once for all tests."""
-    if not os.path.exists(PROCESSED_DATA_FILE):
-        pytest.fail(f"FATAL: Processed data file not found at {PROCESSED_DATA_FILE}. Run normalize_psych_data.py first.")
+    if not PROCESSED_DATA_FILE.exists():
+        pytest.fail(f"FATAL: Processed data file not found at {PROCESSED_DATA_FILE}.")
     return pd.read_parquet(PROCESSED_DATA_FILE)
 
 # --- Test Cases ---
 
 def test_file_exists():
     """Test 1: Ensures the processed data file was actually created."""
-    assert os.path.exists(PROCESSED_DATA_FILE), "The final processed parquet file is missing."
+    assert PROCESSED_DATA_FILE.exists(), "The final processed parquet file is missing."
 
 def test_schema_is_correct(data):
     """Test 2: Validates that all expected columns are present."""
+    actual_columns = set(data.columns)
     for col in EXPECTED_COLUMNS:
-        assert col in data.columns, f"Missing expected column: '{col}'"
+        assert col in actual_columns, f"Missing expected column: '{col}'"
 
 def test_no_missing_critical_data(data):
     """Test 3: Ensures there are no nulls in the core 'question' and 'answer' fields."""
@@ -1076,17 +1131,24 @@ def test_no_missing_critical_data(data):
     assert data['answer'].isnull().sum() == 0, "There are missing values in the 'answer' column."
 
 def test_content_plausibility(data):
-    """Test 4: Checks if the data content is reasonable (e.g., not too short)."""
+    """Test 4: Checks if the data content is reasonable (e.g., not too short or long)."""
     shortest_question = data['question'].str.len().min()
     assert shortest_question >= MIN_QUESTION_LENGTH, f"Found a question with length {shortest_question}, which is shorter than the minimum threshold of {MIN_QUESTION_LENGTH}."
+    
     longest_question = data['question'].str.len().max()
     assert longest_question <= MAX_QUESTION_LENGTH, f"Found a question with length {longest_question}, which is longer than the maximum threshold of {MAX_QUESTION_LENGTH}."
 
-
 def test_source_column_is_valid(data):
-    """Test 5: Checks if the 'source' column contains only known, expected values."""
-    unexpected_sources = set(data['source'].unique()) - set(EXPECTED_SOURCES)
-    assert not unexpected_sources, f"Found unexpected data sources: {unexpected_sources}"
+    """
+    Test 5: Checks if the 'source' column contains only known, expected values.
+    This is crucial for ensuring data provenance is tracked correctly.
+    """
+    actual_sources = set(data['source'].unique())
+    
+    # Find any sources that are in our data but NOT in our official expected list.
+    unexpected_sources = actual_sources - set(EXPECTED_SOURCES)
+    
+    assert not unexpected_sources, f"Found unexpected data sources: {unexpected_sources}. Please update the EXPECTED_SOURCES list in the test if this is intentional."
 </file>
 
 <file path="tests/test_evaluation.py">
@@ -1166,138 +1228,216 @@ def test_model_feature_importance_is_stable(models_and_data):
     assert most_important_feature == 'skill_correct_rate', "The model's most important feature has changed unexpectedly from 'skill_correct_rate'."
 </file>
 
-<file path=".gitignore">
-# --- Virtual Environment ---
-# Never commit the virtual environment folder
-.venv/
-venv/
-env/
-
-# --- Data and Model Files ---
-# Ignore the contents of these directories, but keep the directories themselves
-data/
-models/
-tests/golden_test_set.parquet
-
-# --- Python & Jupyter Cache ---
-# Standard Python cache files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
-
-# --- IDE/Editor specific files ---
-.vscode/
-.idea/
-</file>
-
-<file path="tests/create_golden_set.py">
-# create_golden_set.py
-# This script should be run only ONCE to create the permanent benchmark dataset.
+<file path="src/reasoning_engine/prepare_data.py">
+# src/reasoning_engine/prepare_data.py
 
 import pandas as pd
-import os
+import numpy as np
+from pathlib import Path
+import json
+import ast
+from tqdm import tqdm
+import zipfile
+import io
+import re
+
+tqdm.pandas()
+
+# Define paths
+RAW_DATA_ROOT = Path("data/1_raw_source_data")
+PROCESSED_DATA_DIR = Path("data/2_processed_data")
+OUTPUT_FILE = PROCESSED_DATA_DIR / "normalized_questions.parquet"
+
+# --- ROBUST DATA PROCESSING FUNCTIONS ---
+
+def process_gsm8k(path: Path) -> pd.DataFrame:
+    dfs = []
+    for f in path.glob("*.parquet"):
+        df = pd.read_parquet(f)
+        df['answer'] = df['answer'].str.split('#### ').str[-1].str.strip()
+        df['source'] = 'gsm8k'; dfs.append(df[['question', 'answer', 'source']])
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+def process_proofwriter(path: Path) -> pd.DataFrame:
+    records = []
+    for f in path.glob("*.jsonl"):
+        with open(f, 'r', encoding='utf-8') as file:
+            for line in file:
+                try:
+                    data = json.loads(line)
+                    en_string = data.get('translation', {}).get('en', '')
+                    ro_string = data.get('translation', {}).get('ro', '')
+                    q_match = re.search(r'\$question\$\s*=\s*(.*?)\s*;', en_string)
+                    c_match = re.search(r'\$context\$\s*=\s*(.*)', en_string)
+                    a_match = re.search(r'\$answer\$\s*=\s*(\w+)', ro_string)
+                    if q_match and c_match and a_match:
+                        full_question = f"[CONTEXT]\n{c_match.group(1).strip()}\n\n[QUESTION]\nIs the following statement true or false?\n'{q_match.group(1).strip()}'"
+                        records.append({'question': full_question, 'answer': a_match.group(1).strip(), 'source': 'proofwriter'})
+                except (json.JSONDecodeError, AttributeError): continue
+    return pd.DataFrame(records)
+
+def process_thoughtsource(zip_path: Path) -> pd.DataFrame:
+    if not zip_path.exists(): return pd.DataFrame()
+    records = []
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        json_filename = z.namelist()[0]
+        with z.open(json_filename) as f:
+            data = json.load(f)
+            for split_data in data.values():
+                if isinstance(split_data, list): continue
+                for dataset_name, dataset_list in split_data.items():
+                    if isinstance(dataset_list, list):
+                        for item in dataset_list:
+                            if isinstance(item, dict) and 'question' in item and 'answer' in item:
+                                records.append({'question': item['question'], 'answer': item['answer'], 'source': dataset_name})
+    return pd.DataFrame(records)
+
+def process_bioasq(zip_path: Path) -> pd.DataFrame:
+    if not zip_path.exists(): return pd.DataFrame()
+    records = []
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        for file_info in z.infolist():
+            if file_info.filename.endswith('.json') and not file_info.is_dir():
+                with z.open(file_info) as f:
+                    data = json.load(f)
+                    for q_data in data.get('questions', []):
+                        question, snippets = q_data.get('body'), q_data.get('snippets', [])
+                        if question and snippets:
+                            answer = " ".join([s.get('text', '') for s in snippets])
+                            if answer: records.append({'question': question, 'answer': answer, 'source': 'bioasq'})
+    return pd.DataFrame(records)
+
+def process_pubmedqa(path: Path) -> pd.DataFrame:
+    dfs = []
+    for f in path.glob("*.csv"):
+        with open(f, 'rb') as fh: content = fh.read().decode('utf-8', errors='ignore')
+        df = pd.read_csv(io.StringIO(content));
+        if 'question' in df.columns and 'long_answer' in df.columns:
+            df = df.rename(columns={'long_answer': 'answer'})
+            df['source'] = 'pubmedqa'; dfs.append(df[['question', 'answer', 'source']])
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+def process_mentat_csv(file_path: Path) -> pd.DataFrame:
+    """ Correctly processes the MENTAT data from the reliable CSV file. """
+    if not file_path.exists(): return pd.DataFrame()
+    with open(file_path, 'rb') as fh: content = fh.read().decode('utf-8', errors='ignore')
+    df = pd.read_csv(io.StringIO(content))
+    answer_cols = ['answer_a', 'answer_b', 'answer_c', 'answer_d', 'answer_e']
+    def find_correct_answer(row):
+        try:
+            truth_list = ast.literal_eval(row['creator_truth'])
+            return row[answer_cols[truth_list.index(1.0)]]
+        except: return None
+    df['answer'] = df.apply(find_correct_answer, axis=1)
+    df = df.rename(columns={'text_male': 'question'})
+    df['source'] = 'mentat'; return df[['question', 'answer', 'source']].dropna()
+
+def process_psychology_qa(path: Path) -> pd.DataFrame:
+    dfs = []
+    boltmonkey_file = path / "boltmonkey.json"
+    if boltmonkey_file.exists():
+        df_bolt = pd.read_json(boltmonkey_file); df_bolt['source'] = 'boltmonkey'; dfs.append(df_bolt)
+    gragroo_file = path / "gragroo_train.parquet"
+    if gragroo_file.exists():
+        df_grag = pd.read_parquet(gragroo_file)
+        def extract_qa(c): return (next((m['value'] for m in c if m['from'] == 'human'),None), next((m['value'] for m in c if m['from'] == 'gpt'),None))
+        pairs = df_grag['conversations'].apply(extract_qa)
+        df_proc = pd.DataFrame(pairs.tolist(), columns=['question', 'answer']).dropna()
+        if not df_proc.empty: df_proc['source'] = 'gragroo'; dfs.append(df_proc)
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+# --- Main Data Preparation Orchestrator ---
+
+def prepare_all_data():
+    print("--- Starting Data Ingestion for Question Bank ---")
+    sources_to_process = {
+        "GSM8K": (process_gsm8k, RAW_DATA_ROOT / "1_chain_of_thought/GSM8K"),
+        "ProofWriter": (process_proofwriter, RAW_DATA_ROOT / "1_chain_of_thought/ProofWriter"),
+        "ThoughtSource": (process_thoughtsource, RAW_DATA_ROOT / "1_chain_of_thought/ThoughtSource/ThoughtSource-open-data-snapshot.zip"),
+        "BioASQ": (process_bioasq, RAW_DATA_ROOT / "2_scholarly_qa/BioASQ/BIOASQ_JSON.zip"),
+        "PubMedQA": (process_pubmedqa, RAW_DATA_ROOT / "2_scholarly_qa/PubMedQA"),
+        "MENTAT_CSV": (process_mentat_csv, RAW_DATA_ROOT / "2_scholarly_qa/MENTAT/final_dataset_raw_questions.csv"),
+        "PsychologyQA": (process_psychology_qa, RAW_DATA_ROOT / "3_psychology_qa"),
+    }
+    # ... (rest of the script is unchanged and will work correctly)
+    all_dfs = []
+    print("\n--- Processing Individual Data Sources ---")
+    for name, (func, path) in sources_to_process.items():
+        print(f"-> Processing: {name}...")
+        try:
+            df = func(path)
+            if not df.empty and {'question', 'answer', 'source'}.issubset(df.columns):
+                all_dfs.append(df); print(f"  [SUCCESS] Found {len(df)} records.")
+            else: print(f"  [WARNING] No valid records were extracted.")
+        except Exception as e: print(f"  [FATAL ERROR] An exception occurred: {e.__class__.__name__}: {e}")
+
+    print("\nNOTE: Student interaction logs (ASSISTments, KDD Cup) are intentionally excluded from this question bank.")
+    if not all_dfs: print("\nError: No data was successfully processed. Halting."); return
+    print("\n--- Combining All Processed Sources ---")
+    final_df = pd.concat(all_dfs, ignore_index=True).dropna(subset=['question', 'answer'])
+    print(f"Total records combined: {len(final_df)}")
+    print("\nPerforming final cleaning...")
+    final_df['question'] = final_df['question'].astype(str); final_df['answer'] = final_df['answer'].astype(str)
+    final_df = final_df[final_df['question'].str.len() > 10].reset_index(drop=True)
+    print(f"\nSaving normalized question bank to {OUTPUT_FILE}...")
+    PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    final_df.to_parquet(OUTPUT_FILE)
+    print("\n--- Data Preparation Summary ---")
+    print(f"Successfully saved {len(final_df)} records to '{OUTPUT_FILE}'.")
+    print("Final source distribution:"); print(final_df['source'].value_counts())
+    print("\nQuestion Bank generation complete.")
+
+if __name__ == "__main__":
+    prepare_all_data()
+</file>
+
+<file path="src/reasoning_engine/build_rag_index.py">
+# src/reasoning_engine/build_rag_index.py
+
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+from pathlib import Path
+import torch
 
 # --- Configuration ---
-PROCESSED_DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
-TESTS_DIR = "tests"
-GOLDEN_SET_PATH = os.path.join(TESTS_DIR, "golden_test_set.parquet")
-SAMPLE_SIZE = 1000
+# Correctly pointing to the output of our data quality step
+DATA_FILE = Path("data/2_processed_data/normalized_questions.parquet")
+OUTPUT_FILE = Path("data/2_processed_data/questions_with_embeddings.parquet")
+MODEL_NAME = 'all-MiniLM-L6-v2' 
 
-# --- Main Logic ---
+def compute_embeddings():
+    print("--- Starting Embedding Computation ---")
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
+    if device == 'cpu':
+        print("WARNING: GPU not found. See options below for accelerating this process.")
+
+    if not DATA_FILE.exists():
+        print(f"FATAL: Data file not found at {DATA_FILE}. Please run prepare_data.py first.")
+        return
+
+    df = pd.read_parquet(DATA_FILE)
+
+    print(f"Loading sentence-transformer model: '{MODEL_NAME}'...")
+    model = SentenceTransformer(MODEL_NAME, device=device)
+
+    print(f"Computing embeddings for {len(df)} questions... (This may take a while)")
+    embeddings = model.encode(df['question'].tolist(), show_progress_bar=True)
+
+    embedding_df = pd.DataFrame(embeddings, index=df.index)
+    embedding_df = embedding_df.add_prefix('embed_')
+    df_with_embeddings = pd.concat([df, embedding_df], axis=1)
+
+    print(f"Saving new dataframe with embeddings to '{OUTPUT_FILE}'...")
+    df_with_embeddings.to_parquet(OUTPUT_FILE)
+
+    print("\nSUCCESS: Embeddings computed and saved.")
+    print(f"New dataframe shape: {df_with_embeddings.shape}")
+    print(f"Output file: {OUTPUT_FILE}")
+
 if __name__ == "__main__":
-    print("--- Creating Golden Test Set ---")
-
-    # 1. Ensure the tests directory exists
-    os.makedirs(TESTS_DIR, exist_ok=True)
-    
-    # 2. Check if the source data file exists
-    if not os.path.exists(PROCESSED_DATA_FILE):
-        print(f"FATAL: Source data file not found at '{PROCESSED_DATA_FILE}'.")
-        print("Please run normalize_psych_data.py first.")
-    
-    # 3. Check if the golden set already exists
-    elif os.path.exists(GOLDEN_SET_PATH):
-        print(f"INFO: Golden test set already exists at '{GOLDEN_SET_PATH}'. No action taken.")
-        print("If you need to recreate it, please delete the old file first.")
-    
-    # 4. Create the file if it's missing
-    else:
-        try:
-            print(f"Loading source data from '{PROCESSED_DATA_FILE}'...")
-            df = pd.read_parquet(PROCESSED_DATA_FILE)
-            
-            print(f"Taking a fixed, random sample of {SAMPLE_SIZE} rows...")
-            # Using random_state=42 ensures the sample is the same every time
-            golden_set = df.sample(n=SAMPLE_SIZE, random_state=42)
-            
-            print(f"Saving golden test set to '{GOLDEN_SET_PATH}'...")
-            golden_set.to_parquet(GOLDEN_SET_PATH, index=False)
-            
-            print("\nSUCCESS: Golden test set created successfully.")
-            
-        except Exception as e:
-            print(f"\nAn error occurred: {e}")
-</file>
-
-<file path="requirements.txt">
-# ===================================================================
-#  Definitive Requirements for Python 3.11 on Windows
-# ===================================================================
-
-# --- Proactive Tutor & Data Science ---
-# Installing the official pyBKT from Git, but with --no-binary to force
-# the pure Python mode and avoid the Windows C++ build error.
-git+https://github.com/CAHLR/pyBKT.git#egg=pyBKT
-lightgbm==4.3.0
-scikit-learn==1.4.2
-joblib
-numpy==1.26.4
-pandas==2.2.2
-scipy==1.12.0
-cython
-
-# --- Core LLM & Fine-Tuning Libraries ---
-transformers>=4.41.0
-accelerate
-bitsandbytes
-torch
-trl
-einops
-peft
-
-# --- Shared Libraries ---
-sentence-transformers
-faiss-cpu
-datasets
-pyarrow
-tqdm
-requests
-langdetect
-pytest
-evaluate
-rouge_score
-jupyterlab
-ipykernel
-seaborn
-matplotlib
-</file>
-
-<file path="README.md">
----
-title: Psychology Tutor Engine
-sdk: docker
-app_port: 7860
----
-
-# Psychology Tutor Engine - Interactive Workspace
-
-This Space launches a JupyterLab environment on the free `cpu-basic` tier.
-
-From here you can run the data processing pipeline, the main tutor modeling notebook, or manually start the T5 fine-tuning script.
+    compute_embeddings()
 </file>
 
 </files>
