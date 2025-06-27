@@ -15,3 +15,9 @@ models/
 # Reports and logs
 *.txt
 *.log
+
+# Generated files and tool outputs
+repomix-output.xml
+
+# Notebook checkpoints
+.ipynb_checkpoints/
