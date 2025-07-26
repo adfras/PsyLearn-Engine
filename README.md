@@ -18,6 +18,9 @@ The core architecture is split into two main components:
 -   **Predictive Performance Modeling**: Uses a LightGBM classifier with rich features to accurately predict the probability of a student answering the next question correctly.
 -   **Generative Content Creation**: A fine-tuned T5 model capable of generating plausible "distractor" answers for questions, enhancing the quality of assessments.
 -   **Domain-Aware Data Pipeline**: A robust data processing pipeline that understands the difference between psychology-specific content and other knowledge domains, ensuring high-quality data for model training.
+-   **Easy Feature Engineering Access**: Utility functions for generating model
+    features are re-exported via `feature_engineering.py` at the project root
+    for convenient importing in tests and scripts.
 
 ## The Data & Model Pipeline
 
@@ -55,9 +58,10 @@ The project follows a multi-stage pipeline to process raw information into train
     ```
 
 3.  **Install the required packages:**
-    *(Note: You should create a `requirements.txt` file for your project)*
+    The repository includes a `requirements.txt` with both core and optional
+    dependencies. The optional packages enable the full test suite.
     ```bash
-    pip install torch transformers sentencepiece pandas
+    pip install -r requirements.txt
     ```
 
 ## How to Run the Pipeline & Use the Model
@@ -70,3 +74,14 @@ The model training is compute-intensive and best performed on Google Colab. The 
     # Make sure you are in the project root with your venv active
     python tests/test_local_model.py
     ```
+
+## Running the Tests
+
+The test suite is designed to run even on lightweight setups. Tests will
+automatically skip if optional dependencies or data files are missing. To run
+all checks, ensure the packages listed in `requirements.txt` are installed and
+execute:
+
+```bash
+pytest -q
+```

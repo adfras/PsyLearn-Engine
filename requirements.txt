@@ -25,6 +25,7 @@ peft
 sentencepiece
 
 # --- Testing ---
+# Optional: install these to run the entire test suite
 pytest
 
 # --- Shared Libraries ---
