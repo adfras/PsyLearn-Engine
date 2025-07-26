@@ -1,6 +1,19 @@
-import pandas as pd
+"""Spot-check quality of generated training data."""
+
+import importlib
+import sys
 import os
 import argparse
+
+REQUIRED_PACKAGES = ["pandas", "pyarrow"]
+
+for pkg in REQUIRED_PACKAGES:
+    if importlib.util.find_spec(pkg) is None:
+        sys.exit(
+            f"Missing required package '{pkg}'. Install dependencies via 'pip install -r requirements.txt'."
+        )
+
+import pandas as pd
 
 # --- Configuration ---
 TRAINING_DATA_FILE = "data/training_sets/distractor_generation_training_data.parquet"

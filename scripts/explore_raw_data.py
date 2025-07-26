@@ -1,12 +1,25 @@
 # scripts/explore_raw_data.py
 
-import pandas as pd
+"""Generate a diagnostics report for the raw data files."""
+
+import importlib
+import sys
 from pathlib import Path
 import zipfile
 import io
 import ast
 from collections import Counter
 from contextlib import redirect_stdout
+
+REQUIRED_PACKAGES = ["pandas", "pyarrow"]
+
+for pkg in REQUIRED_PACKAGES:
+    if importlib.util.find_spec(pkg) is None:
+        sys.exit(
+            f"Missing required package '{pkg}'. Install dependencies via 'pip install -r requirements.txt'."
+        )
+
+import pandas as pd
 
 # --- CONFIGURATION ---
 RAW_DATA_ROOT = Path("data/1_raw_source_data")

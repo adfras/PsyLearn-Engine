@@ -22,8 +22,10 @@ torch
 trl
 einops
 peft
-pytest
 sentencepiece
+
+# --- Testing ---
+pytest
 
 # --- Shared Libraries ---
 sentence-transformers
@@ -33,7 +35,6 @@ pyarrow
 tqdm
 requests
 langdetect
-pytest
 evaluate
 rouge_score
 jupyterlab

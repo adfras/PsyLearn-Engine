@@ -1,9 +1,22 @@
 # investigate_data.py
 # A robust script to find and analyze rows in the dataset based on column length.
 
-import pandas as pd
+"""Utility to explore dataset rows based on column length."""
+
+import importlib
+import sys
 import argparse
 import os
+
+REQUIRED_PACKAGES = ["pandas", "pyarrow"]
+
+for pkg in REQUIRED_PACKAGES:
+    if importlib.util.find_spec(pkg) is None:
+        sys.exit(
+            f"Missing required package '{pkg}'. Install dependencies via 'pip install -r requirements.txt'."
+        )
+
+import pandas as pd
 
 # --- Configuration ---
 DEFAULT_DATA_FILE = "data/processed/ALL_PSYCHOLOGY_DATA_normalized.parquet"
