@@ -1,0 +1,432 @@
+PSYCHOLOGY TUTOR ENGINE - RAW DATA DIAGNOSTICS REPORT
+
+================================================================================
+=== 1_CHAIN_OF_THOUGHT ===
+================================================================================
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\1_chain_of_thought\GSM8K\test-00000-of-00001.parquet
+  - Text Encoding: latin-1
+  - Shape: (1319, 2)
+  - Columns: ['question', 'answer']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                          question  \
+0  Janet’s ducks lay 16 eggs per day. She eats three for breakfast every mornin...   
+1  A robe takes 2 bolts of blue fiber and half that much white fiber.  How many...   
+
+                                                                            answer  
+0  Janet sells 16 - 3 - 4 = <<16-3-4=9>>9 duck eggs a day.\nShe makes 9 * 2 = $...  
+1  It takes 2/2=<<2/2=1>>1 bolt of white fiber\nSo the total amount of fabric i...  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\1_chain_of_thought\GSM8K\train-00000-of-00001(2).parquet
+  - Text Encoding: latin-1
+  - Shape: (7473, 2)
+  - Columns: ['question', 'answer']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                          question  \
+0  Natalia sold clips to 48 of her friends in April, and then she sold half as ...   
+1  Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes o...   
+
+                                                                            answer  
+0  Natalia sold 48/2 = <<48/2=24>>24 clips in May.\nNatalia sold 48+24 = <<48+2...  
+1  Weng earns 12/60 = $<<12/60=0.2>>0.2 per minute.\nWorking 50 minutes, she ea...  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\1_chain_of_thought\ProofWriter\data-test.jsonl
+  - Text Encoding: utf-8
+  - Shape: (11820, 1)
+  - Columns: ['translation']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                       translation
+0  {'en': '$answer$ ; $proof$ ; $question$ = The bear needs the mouse. ; $conte...
+1  {'en': '$answer$ ; $proof$ ; $question$ = The mouse does not see the rabbit....
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\1_chain_of_thought\ProofWriter\data-train.jsonl
+  - Text Encoding: utf-8
+  - Shape: (41388, 1)
+  - Columns: ['translation']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                       translation
+0  {'en': '$answer$ ; $proof$ ; $question$ = The tiger visits the rabbit. ; $co...
+1  {'en': '$answer$ ; $proof$ ; $question$ = The cow does not need the rabbit. ...
+
+Inspecting ZIP archive: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\1_chain_of_thought\ThoughtSource\ThoughtSource-open-data-snapshot.zip
+  - Contains 1 file(s): ['collection_paper1.json']
+
+  --- Sampling first data file from zip: 'collection_paper1.json' ---
+  - Text Encoding: utf-8
+  - Shape: (3, 21)
+  - Columns: ['aqua', 'asdiv', 'commonsense_qa', 'entailment_bank', 'gsm8k', 'mawps', 'med_qa', 'med_qa_open', 'medmc_qa', 'mmlu_anatomy', 'mmlu_clinical_knowledge', 'mmlu_college_biology', 'mmlu_college_medicine', 'mmlu_medical_genetics', 'mmlu_professional_medicine', 'open_book_qa', 'pubmed_qa', 'qed', 'strategy_qa', 'svamp', 'worldtree']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                                  aqua  \
+train  [{'id': 'aqua_train_0', 'ref_id': '', 'question': 'Two friends plan to walk ...   
+test   [{'id': 'aqua_test_0', 'ref_id': '', 'question': 'A car is being driven, in ...   
+
+                                                                                 asdiv  \
+train  [{'id': 'nluds-0001', 'ref_id': '', 'question': 'Seven red apples and two gr...   
+test                                                                               NaN   
+
+                                                                        commonsense_qa  \
+train  [{'id': '075e483d21c29a511267ef62bedc0461', 'ref_id': '', 'question': 'The s...   
+test   [{'id': '90b30172e645ff91f7171a048582eb8b', 'ref_id': '', 'question': 'The t...   
+
+                                                                       entailment_bank  \
+train  [{'id': 'entailment_bank_train_0', 'ref_id': 'MDSA_2009_4_30', 'question': '...   
+test   [{'id': 'entailment_bank_test_0', 'ref_id': 'Mercury_SC_408040', 'question':...   
+
+                                                                                 gsm8k  \
+train  [{'id': 'gsm8k_train_0', 'ref_id': '', 'question': 'Natalia sold clips to 48...   
+test   [{'id': 'gsm8k_test_0', 'ref_id': '', 'question': 'Janet’s ducks lay 16 eggs...   
+
+                                                                                 mawps  \
+train  [{'id': 'mawps_train_0', 'ref_id': '', 'question': 'Mary is baking a cake. T...   
+test                                                                               NaN   
+
+                                                                                med_qa  \
+train  [{'id': 'med_qa_train_0', 'ref_id': '', 'question': 'A 23-year-old pregnant ...   
+test   [{'id': 'med_qa_test_0', 'ref_id': '', 'question': 'A junior orthopaedic sur...   
+
+                                                                           med_qa_open  \
+train  [{'id': 'med_qa_open_train_0', 'ref_id': '', 'question': 'A 23-year-old preg...   
+test   [{'id': 'med_qa_open_test_0', 'ref_id': '', 'question': 'A junior orthopaedi...   
+
+                                                                              medmc_qa  \
+train  [{'id': 'e9ad821a-c438-4965-9f77-760819dfa155', 'ref_id': '', 'question': 'C...   
+test   [{'id': '84f328d3-fca4-422d-8fb2-19d55eb31503', 'ref_id': '', 'question': 'W...   
+
+                                                                          mmlu_anatomy  \
+train  [{'id': 'mmlu_anatomy_train_0', 'ref_id': '', 'question': 'What is the embry...   
+test   [{'id': 'mmlu_anatomy_test_0', 'ref_id': '', 'question': 'A lesion causing c...   
+
+                                                               mmlu_clinical_knowledge  \
+train  [{'id': 'mmlu_clinical_knowledge_train_0', 'ref_id': '', 'question': 'The en...   
+test   [{'id': 'mmlu_clinical_knowledge_test_0', 'ref_id': '', 'question': 'What si...   
+
+                                                                  mmlu_college_biology  \
+train  [{'id': 'mmlu_college_biology_train_0', 'ref_id': '', 'question': 'Which of ...   
+test   [{'id': 'mmlu_college_biology_test_0', 'ref_id': '', 'question': 'Based on t...   
+
+                                                                 mmlu_college_medicine  \
+train  [{'id': 'mmlu_college_medicine_train_0', 'ref_id': '', 'question': 'Glucose ...   
+test   [{'id': 'mmlu_college_medicine_test_0', 'ref_id': '', 'question': 'A police ...   
+
+                                                                 mmlu_medical_genetics  \
+train  [{'id': 'mmlu_medical_genetics_train_0', 'ref_id': '', 'question': 'Large tr...   
+test   [{'id': 'mmlu_medical_genetics_test_0', 'ref_id': '', 'question': 'In a Robe...   
+
+                                                            mmlu_professional_medicine  \
+train  [{'id': 'mmlu_professional_medicine_train_0', 'ref_id': '', 'question': 'A 4...   
+test   [{'id': 'mmlu_professional_medicine_test_0', 'ref_id': '', 'question': 'A 67...   
+
+                                                                          open_book_qa  \
+train  [{'id': 'open_book_qa_train_0', 'ref_id': '', 'question': 'The sun is respon...   
+test   [{'id': 'open_book_qa_test_0', 'ref_id': '', 'question': 'A person wants to ...   
+
+                                                                             pubmed_qa  \
+train  [{'id': '10808977', 'ref_id': '10808977', 'question': 'Can tailored interven...   
+test   [{'id': '21645374', 'ref_id': '21645374', 'question': 'Do mitochondria play ...   
+
+                                                                                   qed  \
+train  [{'id': '9174646170831578919', 'ref_id': '', 'question': 'What is the medica...   
+test                                                                               NaN   
+
+                                                                           strategy_qa  \
+train  [{'id': 'b8677742616fef051f00', 'ref_id': '', 'question': 'Are more people t...   
+test   [{'id': '564959490dd0b8316a88', 'ref_id': '', 'question': 'can you use Micro...   
+
+                                                                                 svamp  \
+train  [{'id': 'svamp_train_0', 'ref_id': '', 'question': 'Each pack of dvds costs ...   
+test                                                                               NaN   
+
+                                                                             worldtree  
+train  [{'id': 'worldtree_train_0', 'ref_id': '', 'question': 'Which of the followi...  
+test   [{'id': 'worldtree_test_0', 'ref_id': '', 'question': 'What remains in the s...  
+
+================================================================================
+=== 2_SCHOLARLY_QA ===
+================================================================================
+
+Inspecting ZIP archive: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\BioASQ\BIOASQ_JSON.zip
+  - Contains 39 file(s): ['BioASQ/4B1_golden.json', 'BioASQ/4B2_golden.json', 'BioASQ/4B3_golden.json', 'BioASQ/4B4_golden.json', 'BioASQ/4B5_golden.json']
+
+  --- Sampling first data file from zip: 'BioASQ/4B1_golden.json' ---
+  - Text Encoding: utf-8
+  - Shape: (100, 1)
+  - Columns: ['questions']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                         questions
+0  {'body': 'Is there evidence that tomato juice lowers cholesterol levels?', '...
+1  {'body': 'Which histone modification discriminates between active and poised...
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\MENTAT\eval_data\mentat_data_age\data-00000-of-00001.arrow
+  - Text Encoding: latin-1
+  [ERROR] Could not read or process file 'data-00000-of-00001.arrow'. Reason: Expected object or value
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\MENTAT\eval_data\mentat_data_base\data-00000-of-00001.arrow
+  - Text Encoding: latin-1
+  [ERROR] Could not read or process file 'data-00000-of-00001.arrow'. Reason: Expected object or value
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\MENTAT\eval_data\mentat_data_gender\data-00000-of-00001.arrow
+  - Text Encoding: latin-1
+  [ERROR] Could not read or process file 'data-00000-of-00001.arrow'. Reason: Expected object or value
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\MENTAT\eval_data\mentat_data_nat\data-00000-of-00001.arrow
+  - Text Encoding: latin-1
+  [ERROR] Could not read or process file 'data-00000-of-00001.arrow'. Reason: Expected object or value
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\MENTAT\eval_results_o1-2024-12-17_mentat_data_base_2025_01_26_2031.pkl
+  - Text Encoding: latin-1
+  [ERROR] Could not read or process file 'eval_results_o1-2024-12-17_mentat_data_base_2025_01_26_2031.pkl'. Reason: Expected object or value
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\MENTAT\final_dataset_raw_questions.csv
+  - Text Encoding: utf-8
+  - Shape: (204, 14)
+  - Columns: ['Unnamed: 0', 'q_id', 'category', 'answer_a', 'answer_b', 'answer_c', 'answer_d', 'answer_e', 'creator_truth', 'text_male', 'text_female', 'text_nonbinary', 'possible_modifiers', 'comment']
+
+  --- DIAGNOSTICS ---
+  [!] Issue Detected: Column 'creator_truth' appears to contain stringified Python objects (dicts/lists).
+  [!] Issue Detected: Column 'possible_modifiers' appears to contain stringified Python objects (dicts/lists).
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+   Unnamed: 0  q_id   category               answer_a                        answer_b  \
+0           0     2  diagnosis  Acute Stress Disorder  Post-traumatic Stress Disorder   
+1           1     3  diagnosis    Adjustment Disorder       Schizophreniform Disorder   
+
+                                            answer_c             answer_d                  answer_e  \
+0                       Generalized Anxiety Disorder  Adjustment Disorder           Specific Phobia   
+1  Major Depressive Disorder with psychotic features        Schizophrenia  Schizoaffective Disorder   
+
+               creator_truth                                                                        text_male  \
+0  [1.0, 0.0, 0.0, 0.0, 0.0]  A <AGE> <NAT> man has no prior medical or psychiatric history. Three weeks a...   
+1  [0.0, 1.0, 0.0, 0.0, 0.0]  An <AGE> <NAT> man has a history of ADHD and no psychiatric history. He live...   
+
+                                                                       text_female  \
+0  A <AGE> <NAT> woman has no prior medical or psychiatric history. Three weeks...   
+1  An <AGE> <NAT> woman has a history of ADHD and no psychiatric history. She l...   
+
+                                                                    text_nonbinary possible_modifiers comment  
+0  A <AGE> <NAT> non-binary individual has no prior medical or psychiatric hist...     ['age', 'nat']     NaN  
+1  An <AGE> <NAT> non-binary individual has a history of ADHD and no psychiatri...     ['age', 'nat']     NaN  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\PubMedQA\pubmed_qa_labeled.csv
+  - Text Encoding: utf-8
+  - Shape: (1000, 5)
+  - Columns: ['pubid', 'question', 'context', 'long_answer', 'final_decision']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+      pubid                                                                         question  \
+0  21645374  Do mitochondria play a role in remodelling lace plant leaves during programm...   
+1  16418930             Landolt C and snellen e acuity: differences in strabismus amblyopia?   
+
+                                                                           context  \
+0  {'contexts': array(['Programmed cell death (PCD) is the regulated death of c...   
+1  {'contexts': array(['Assessment of visual acuity depends on the optotypes us...   
+
+                                                                       long_answer final_decision  
+0  Results depicted mitochondrial dynamics in vivo as PCD progresses within the...            yes  
+1  Using the charts described, there was only a slight overestimation of visual...             no  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\PubMedQA\pubmed_qa_pqa_artificial.csv
+  - Text Encoding: utf-8
+  - Shape: (211269, 5)
+  - Columns: ['pubid', 'question', 'context', 'long_answer', 'final_decision']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+      pubid                                                                         question  \
+0  25429730  Are group 2 innate lymphoid cells ( ILC2s ) increased in chronic rhinosinusi...   
+1  25433161  Does vagus nerve contribute to the development of steatohepatitis and obesit...   
+
+                                                                           context  \
+0  {'contexts': array(['Chronic rhinosinusitis (CRS) is a heterogeneous disease...   
+1  {'contexts': array(['Phosphatidylethanolamine N-methyltransferase (PEMT), a ...   
+
+                                                                       long_answer final_decision  
+0  As ILC2s are elevated in patients with CRSwNP, they may drive nasal polyp fo...            yes  
+1  Neuronal signals via the hepatic vagus nerve contribute to the development o...            yes  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\PubMedQA\pubmed_qa_pqa_labeled.csv
+  - Text Encoding: utf-8
+  - Shape: (1000, 5)
+  - Columns: ['pubid', 'question', 'context', 'long_answer', 'final_decision']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+      pubid                                                                         question  \
+0  21645374  Do mitochondria play a role in remodelling lace plant leaves during programm...   
+1  16418930             Landolt C and snellen e acuity: differences in strabismus amblyopia?   
+
+                                                                           context  \
+0  {'contexts': array(['Programmed cell death (PCD) is the regulated death of c...   
+1  {'contexts': array(['Assessment of visual acuity depends on the optotypes us...   
+
+                                                                       long_answer final_decision  
+0  Results depicted mitochondrial dynamics in vivo as PCD progresses within the...            yes  
+1  Using the charts described, there was only a slight overestimation of visual...             no  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\2_scholarly_qa\PubMedQA\pubmed_qa_pqa_unlabeled.csv
+  - Text Encoding: utf-8
+  - Shape: (61249, 4)
+  - Columns: ['pubid', 'question', 'context', 'long_answer']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+      pubid                                                                         question  \
+0  14499029  Is naturopathy as effective as conventional therapy for treatment of menopau...   
+1  14499049                          Can randomised trials rely on existing electronic data?   
+
+                                                                           context  \
+0  {'contexts': array(['Although the use of alternative medicine in the United ...   
+1  {'contexts': array(['To estimate the feasibility, utility and resource impli...   
+
+                                                                       long_answer  
+0  Naturopathy appears to be an effective alternative for relief of specific me...  
+1  Routine data have the potential to support health technology assessment by R...  
+
+================================================================================
+=== 3_PSYCHOLOGY_QA ===
+================================================================================
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\3_psychology_qa\boltmonkey.json
+  - Text Encoding: utf-8
+  - Shape: (197180, 2)
+  - Columns: ['question', 'answer']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                          question  \
+0  How does Freud's psychoanalytic theory explain human behaviour?   
+1         How does behaviourism differ from psychoanalytic theory?   
+
+                                                                            answer  
+0  Freud believed that human behaviour is driven by unconscious desires and con...  
+1  behaviourism suggests that behaviour is learned through environmental stimul...  
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\3_psychology_qa\gragroo_train.parquet
+  - Text Encoding: latin-1
+  - Shape: (193236, 1)
+  - Columns: ['conversations']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+                                                                     conversations
+0  [{'from': 'human', 'value': 'Please describe the implications of the interde...
+1  [{'from': 'human', 'value': 'What are some common misconceptions therapists ...
+
+================================================================================
+=== 4_STEPWISE_VALIDATION_LOGS ===
+================================================================================
+
+Inspecting ZIP archive: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\4_stepwise_validation_logs\ASSISTments\Assistment05-06.zip
+  - Contains 3 file(s): ['ds120_tx_All_Data_265_2017_0414_065125.txt', 'README.txt', 'TERMS.html']
+
+  --- Sampling first data file from zip: 'ds120_tx_All_Data_265_2017_0414_065125.txt' ---
+  - File Type: Plain Text. First 5 lines:
+    Row	Sample Name	Transaction Id	Anon Student Id	Session Id	Time	Time Zone	Duration (sec)	Student Response Type	Student Response Subtype	Tutor Response Type	Tutor Response Subtype	Level (Curriculum)	Problem Name	Problem View	Problem Start Time	Step Name	Attempt At Step	Is Last Attempt	Outcome	Selection	Action	Input	Feedback Text	Feedback Classification	Help Level	Total Num Hints	KC (WPI-Apr-2005)	KC Category (WPI-Apr-2005)	KC (WPI-Apr-2005)	KC Category (WPI-Apr-2005)	KC (WPI-Apr-2005)	KC Category (WPI-Apr-2005)	KC (WPI-Apr-2005)	KC Category (WPI-Apr-2005)	KC (WPI-Apr-2005)	KC Category (WPI-Apr-2005)	KC (WPI-Apr-2005)	KC Category (WPI-Apr-2005)	KC (skills_from_dataframe)	KC Category (skills_from_dataframe)	KC (skills_from_dataframe)	KC Category (skills_from_dataframe)	KC (skills_from_dataframe)	KC Category (skills_from_dataframe)	KC (skills_from_dataframe)	KC Category (skills_from_dataframe)	KC (skills_from_dataframe)	KC Category (skills_from_dataframe)	KC (skills_from_dataframe)	KC Category (skills_from_dataframe)	KC (MCAS39-State_WPI-Simple)	KC Category (MCAS39-State_WPI-Simple)	KC (MCAS39-State_WPI-Simple)	KC Category (MCAS39-State_WPI-Simple)	KC (MCAS39-State_WPI-Simple)	KC Category (MCAS39-State_WPI-Simple)	KC (MCAS39-State_WPI-Simple)	KC Category (MCAS39-State_WPI-Simple)	KC (MCAS5-State_WPI-Simple)	KC Category (MCAS5-State_WPI-Simple)	KC (MCAS5-State_WPI-Simple)	KC Category (MCAS5-State_WPI-Simple)	KC (MCAS5-State_WPI-Simple)	KC Category (MCAS5-State_WPI-Simple)	KC (MCAS5-State_WPI-Simple)	KC Category (MCAS5-State_WPI-Simple)	KC (Single-KC)	KC Category (Single-KC)	KC (Unique-step)	KC Category (Unique-step)	School	Class
+    1	All Data	edea5e53aecbab51c95db5daf2e8a3ed	Stu_0012ae7d5d1993619f0bad91630b7c79	3519200	2006-02-07 14:12:09	US/Eastern	576	HINT_REQUEST		HINT_MSG		Assistment	8788	1	2006-02-07 14:02:33	Step0:8788:Lines m and n are parallel, what is the measure of angle 4? SYSTEM	1	1	HINT	Step0:8788:Lines m and n are parallel, what is the measure of angle 4?	SYSTEM		System displays first scaffold	SCAFFOLD	1																																										Single-KC		KC230		0103999	1
+    2	All Data	3ef6d83d97af2af27b865a9313cb3606	Stu_0012ae7d5d1993619f0bad91630b7c79	3519200	2006-02-07 14:13:24	US/Eastern	75	HINT_REQUEST		HINT_MSG		Assistment	8788	1	2006-02-07 14:02:33	Step1:8792:What is the measure of angle 2? SYSTEM	1	0	HINT	Step1:8792:What is the measure of angle 2?	SYSTEM		Lines m and n are parallel and intersected by the same line, therefore the corresponding angles are equal.	HINT_REQUEST	1																																										Single-KC				0103999	1
+    3	All Data	990495633485f1dfc13bbee515d11e97	Stu_0012ae7d5d1993619f0bad91630b7c79	3519200	2006-02-07 14:14:01	US/Eastern	37	ATTEMPT		RESULT		Assistment	8788	1	2006-02-07 14:02:33	Step1:8792:What is the measure of angle 2? SYSTEM	2	1	INCORRECT	Step1:8792:What is the measure of angle 2?	SYSTEM	55	That is not correct. Try again.																																												Single-KC				0103999	1
+    4	All Data	c5c9dd1378006078865dd387cc427f6c	Stu_0012ae7d5d1993619f0bad91630b7c79	3519239	2006-02-07 14:23:16	US/Eastern	166	ATTEMPT		RESULT		Assistment	8635	1	2006-02-07 14:20:30	Step0:8635:Jacqueline is a runner who hopes to maintain a mean of 8 miles per day for 7 days. The chart above shows Jaqueline's distances for each of four days last week. What was the mean number of miles Jaqueline ran on Friday, Saturday and Sunday if sh SYSTEM	1	1	CORRECT	Step0:8635:Jacqueline is a runner who hopes to maintain a mean of 8 miles per day for 7 days. The chart above shows Jaqueline's distances for each of four days last week. What was the mean number of miles Jaqueline ran on Friday, Saturday and Sunday if sh	SYSTEM	9 miles																																													Single-KC				0103999	1
+
+Analyzing file: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\4_stepwise_validation_logs\ASSISTments\Assistment09-10-Corrected.csv
+  - Text Encoding: latin-1
+  - Shape: (346860, 31)
+  - Columns: ['Unnamed: 0', 'order_id', 'assignment_id', 'user_id', 'assistment_id', 'problem_id', 'original', 'correct', 'attempt_count', 'ms_first_response', 'tutor_mode', 'answer_type', 'sequence_id', 'student_class_id', 'position', 'type', 'base_sequence_id', 'skill_id', 'skill_name', 'teacher_id', 'school_id', 'hint_count', 'hint_total', 'overlap_time', 'template_id', 'answer_id', 'answer_text', 'first_action', 'bottom_hint', 'opportunity', 'opportunity_original']
+
+  --- DIAGNOSTICS ---
+  [+] No major structural issues detected.
+
+  --- SAMPLE DATA ---
+   Unnamed: 0  order_id  assignment_id  user_id  assistment_id  problem_id  original  correct  attempt_count  \
+0           1  33022537         277618    64525          33139       51424         1        1              1   
+1           2  33022709         277618    64525          33150       51435         1        1              1   
+
+   ms_first_response tutor_mode answer_type  sequence_id  student_class_id  position            type  \
+0              32454      tutor     algebra         5948             13241       126  MasterySection   
+1               4922      tutor     algebra         5948             13241       126  MasterySection   
+
+   base_sequence_id skill_id       skill_name  teacher_id  school_id  hint_count  hint_total  overlap_time  \
+0              5948     1_13  Box and Whisker       22763         73           0           3         32454   
+1              5948     1_13  Box and Whisker       22763         73           0           3          4922   
+
+   template_id  answer_id answer_text  first_action  bottom_hint  opportunity  opportunity_original  
+0        30799        NaN          26             0          NaN            1                   1.0  
+1        30799        NaN          55             0          NaN            2                   2.0  
+
+Inspecting ZIP archive: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\4_stepwise_validation_logs\KDD Cup\algebra_2008_2009.zip
+  - Contains 3 file(s): ['algebra_2008_2009_submission.txt', 'algebra_2008_2009_test.txt', 'algebra_2008_2009_train.txt']
+
+  --- Sampling first data file from zip: 'algebra_2008_2009_submission.txt' ---
+  - File Type: Plain Text. First 5 lines:
+    Row	Correct First Attempt
+    1	0.0
+    2	0.0
+    3	0.0
+    4	0.0
+
+Inspecting ZIP archive: D:\Projects\psychology-tutor-engine\data\1_raw_source_data\4_stepwise_validation_logs\KDD Cup\bridge_to_algebra_2008_2009.zip
+  - Contains 3 file(s): ['bridge_to_algebra_2008_2009_submission.txt', 'bridge_to_algebra_2008_2009_test.txt', 'bridge_to_algebra_2008_2009_train.txt']
+
+  --- Sampling first data file from zip: 'bridge_to_algebra_2008_2009_submission.txt' ---
+  - File Type: Plain Text. First 5 lines:
+    Row	Correct First Attempt
+    1	0.0
+    2	0.0
+    3	0.0
+    4	0.0
+
+================================================================================
+--- SUMMARY OF FINDINGS ---
+================================================================================
+
+--- ISSUE: Complex Structure (Stringified Object) ---
+  - File(s): final_dataset_raw_questions.csv
+    Details: Column 'creator_truth' appears to contain stringified Python objects (dicts/lists).
+    Action:  Use ast.literal_eval to parse this column during ingestion.
+  - File(s): final_dataset_raw_questions.csv
+    Details: Column 'possible_modifiers' appears to contain stringified Python objects (dicts/lists).
+    Action:  Use ast.literal_eval to parse this column during ingestion.
+
+--- ISSUE: Critical - Licensing ---
+  - File(s): boltmonkey.json, gragroo_train.parquet
+    Action:  Verify data provenance and license before use.
+
+--- ISSUE: Medium - Domain Mismatch ---
+  - File(s): All Non-Psychology Sets
+    Action:  Consider a staged curriculum learning approach.

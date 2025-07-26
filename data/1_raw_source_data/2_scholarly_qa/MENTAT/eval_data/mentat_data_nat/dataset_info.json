@@ -1,0 +1,68 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "prompt_mcq": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "prompt_freeform": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "labels": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "labels_upper_bound": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "labels_lower_bound": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "gender": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "nat": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "age": {
+      "dtype": "float64",
+      "_type": "Value"
+    },
+    "q_id": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "category": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "split": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "random_order": {
+      "feature": {
+        "dtype": "int64",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

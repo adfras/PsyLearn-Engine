@@ -1,0 +1,43 @@
+# ===================================================================
+#  Definitive Requirements for Python 3.11 on Windows
+# ===================================================================
+
+# --- Proactive Tutor & Data Science ---
+# Installing the official pyBKT from Git, but with --no-binary to force
+# the pure Python mode and avoid the Windows C++ build error.
+git+https://github.com/CAHLR/pyBKT.git#egg=pyBKT
+lightgbm==4.3.0
+scikit-learn==1.4.2
+joblib
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.12.0
+cython
+
+# --- Core LLM & Fine-Tuning Libraries ---
+transformers>=4.41.0
+accelerate
+bitsandbytes
+torch
+trl
+einops
+peft
+pytest
+sentencepiece
+
+# --- Shared Libraries ---
+sentence-transformers
+faiss-cpu
+datasets
+pyarrow
+tqdm
+requests
+langdetect
+pytest
+evaluate
+rouge_score
+jupyterlab
+ipykernel
+seaborn
+matplotlib
+protobuf

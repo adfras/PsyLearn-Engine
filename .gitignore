@@ -1,23 +1,32 @@
-# Python virtual environment
+# --- Python junk ---
 .venv/
 venv/
 __pycache__/
+*.pyc
 
-# Data and Models (gitignore these directories)
-data/
-models/
+# --- Notebook artifacts ---
+.ipynb_checkpoints/
 
-# IDE and OS files
-.vscode/
-.idea/
-.DS_Store
-
-# Reports and logs
-*.txt
+# --- Data ---
+data/**/*.zip
+data/**/*_raw.*
+data/**/cache/
+data/**/scratch/
+data/**/samples/
 *.log
 
-# Generated files and tool outputs
-repomix-output.xml
+# Track all relevant .parquet/.csv/.json for Cursor agent
+!data/**/*.parquet
+!data/**/*.csv
+!data/**/*.json
 
-# Notebook checkpoints
-.ipynb_checkpoints/
+# --- Models ---
+models/*
+!models/distractor_generator_t5_production/**
+models/distractor_generator_t5_production/checkpoint-*/
+models/**/*.zip
+
+# --- OS & IDE junk ---
+.DS_Store
+.vscode/
+.idea/
