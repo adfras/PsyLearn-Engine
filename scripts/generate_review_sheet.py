@@ -2,10 +2,23 @@
 # A simple, assumption-free script to generate distractors for human review.
 # This script does NOT look for a 'choices' column.
 
+"""Generate a CSV of model-generated distractors for manual review."""
+
+import importlib
+import sys
+from pathlib import Path
+
+REQUIRED_PACKAGES = ["pandas", "pyarrow", "torch", "transformers", "tqdm"]
+
+for pkg in REQUIRED_PACKAGES:
+    if importlib.util.find_spec(pkg) is None:
+        sys.exit(
+            f"Missing required package '{pkg}'. Install dependencies via 'pip install -r requirements.txt'."
+        )
+
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from pathlib import Path
 from tqdm import tqdm
 
 # --- Configuration (using files we KNOW exist) ---
